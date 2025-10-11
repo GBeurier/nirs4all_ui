@@ -2,7 +2,7 @@
 // dev-all: spawn both frontend (Vite) and backend commands in parallel
 // Requires BACKEND_CMD environment variable (or edit package.json to hardcode a command)
 
-const { spawn } = require('child_process');
+import { spawn } from 'child_process';
 
 const backendCmd = process.env.BACKEND_CMD;
 const envForChildren = { ...process.env, VITE_DEV: 'true' };

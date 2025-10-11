@@ -4,8 +4,8 @@
 //   Bash: export BACKEND_CMD="cd ../nirs4all && uvicorn main:app --reload --port 8000"
 //   PS:   $env:BACKEND_CMD = "cd ..\\nirs4all && uvicorn main:app --reload --port 8000"
 
-const { spawn } = require('child_process');
-const http = require('http');
+import { spawn } from 'child_process';
+import http from 'http';
 
 const backendCmd = process.env.BACKEND_CMD;
 const viteUrl = process.env.VITE_URL || 'http://localhost:5173';

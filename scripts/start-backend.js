@@ -2,7 +2,7 @@
 // Start backend helper
 // Reads BACKEND_CMD from environment and spawns it in a shell.
 
-const { spawn } = require('child_process');
+import { spawn } from 'child_process';
 
 const cmd = process.env.BACKEND_CMD;
 
