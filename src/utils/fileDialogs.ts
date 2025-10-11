@@ -11,6 +11,9 @@ declare global {
         save_file: (defaultFilename?: string, fileTypes?: string[]) => Promise<string | null>;
       };
     };
+    // File System Access API (modern browsers)
+    showDirectoryPicker?: (options?: any) => Promise<any>;
+    showOpenFilePicker?: (options?: any) => Promise<any>;
   }
 }
 
@@ -25,15 +28,28 @@ export const isPywebviewAvailable = (): boolean => {
  * Open native folder picker dialog
  * @returns Selected folder path or null if canceled
  */
-export const selectFolder = async (): Promise<string | null> => {
+export type FolderPickerResult = string | any | null;
+
+export const selectFolder = async (): Promise<FolderPickerResult> => {
   if (!isPywebviewAvailable()) {
-    console.warn('pywebview API not available. Using fallback.');
+    // Try the File System Access API when available (provides native directory picker in modern browsers)
+    if (typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function') {
+      try {
+        const handle = await window.showDirectoryPicker();
+        return handle;
+      } catch (err) {
+        console.warn('Directory picker canceled or not available:', err);
+        return null;
+      }
+    }
+
+    console.warn('pywebview API not available and File System Access API not present.');
     return null;
   }
 
   try {
-    const result = await window.pywebview!.api.select_folder();
-    return result;
+  const result = await window.pywebview!.api.select_folder();
+  return result;
   } catch (error) {
     console.error('Failed to open folder dialog:', error);
     return null;
@@ -46,18 +62,32 @@ export const selectFolder = async (): Promise<string | null> => {
  * @returns Selected file path or null if canceled
  */
 export const selectFile = async (fileTypes?: string[]): Promise<string | null> => {
-  if (!isPywebviewAvailable()) {
-    console.warn('pywebview API not available. Using fallback.');
-    return null;
+  // Prefer pywebview when available
+  if (isPywebviewAvailable()) {
+    try {
+      const result = await window.pywebview!.api.select_file(fileTypes);
+      return result;
+    } catch (error) {
+      console.error('Failed to open file dialog via pywebview:', error);
+      return null;
+    }
   }
 
-  try {
-    const result = await window.pywebview!.api.select_file(fileTypes);
-    return result;
-  } catch (error) {
-    console.error('Failed to open file dialog:', error);
-    return null;
+  // Fallback to File System Access API in modern browsers
+  if (typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function') {
+    try {
+      // @ts-ignore
+      const handles = await window.showOpenFilePicker({ multiple: false });
+      if (!handles || handles.length === 0) return null;
+      return handles[0];
+    } catch (err) {
+      console.warn('Open file picker canceled or unavailable:', err);
+      return null;
+    }
   }
+
+  console.warn('No native file picker available (pywebview / File System Access API).');
+  return null;
 };
 
 /**
@@ -88,14 +118,23 @@ export const saveFile = async (
  * Read file contents from local file system
  * For use after selectFile returns a path
  */
-export const readLocalFile = async (filePath: string): Promise<string> => {
+export const readLocalFile = async (filePath: string | any): Promise<string> => {
   // In pywebview, we need to use fetch with file:// protocol
   try {
-    const response = await fetch(`file://${filePath}`);
-    if (!response.ok) {
-      throw new Error(`Failed to read file: ${response.statusText}`);
+    // If it's a FileSystemFileHandle (from File System Access API)
+    if (filePath && typeof filePath === 'object' && typeof filePath.getFile === 'function') {
+      const f: File = await filePath.getFile();
+      return await f.text();
     }
-    return await response.text();
+
+    // If it's a string path (pywebview), fetch via file://
+    if (typeof filePath === 'string') {
+      const response = await fetch(`file://${filePath}`);
+      if (!response.ok) throw new Error(`Failed to read file: ${response.statusText}`);
+      return await response.text();
+    }
+
+    throw new Error('Unsupported filePath type for readLocalFile');
   } catch (error) {
     console.error('Failed to read local file:', error);
     throw error;

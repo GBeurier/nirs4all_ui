@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Folder, File, ChevronRight, ChevronDown } from 'feather-icons-react';
 import type { FileNode } from '../types';
 import { apiClient } from '../api/client';
+import { selectFolder, selectFile } from '../utils/fileDialogs';
 
 interface FileBrowserModalProps {
   onSelect: (path: string) => void;
@@ -39,11 +40,33 @@ const FileBrowserModal = ({ onSelect, onClose, mode = 'folder' }: FileBrowserMod
   const handleNativeSelect = async () => {
     setLoading(true);
     try {
-      const response: any = mode === 'folder' ? await apiClient.selectFolder() : await apiClient.selectFile();
-      if (response && response.path) {
-        onSelect(response.path);
+      const response: any = mode === 'folder' ? await selectFolder() : await selectFile();
+
+      // No selection or user canceled
+      if (!response) {
+        setUseNativeDialog(false);
         return;
       }
+
+      // If pywebview returned a path string, use it
+      if (typeof response === 'string') {
+        onSelect(response);
+        return;
+      }
+
+      // If File System Access API returned a handle (object), we cannot extract
+      // an absolute OS path to send to the backend for security reasons.
+      // Inform the user and fallback to the JS file browser UI.
+      if (typeof response === 'object') {
+        console.warn('Received a FileSystem handle from browser; cannot derive absolute path to pass to backend.');
+        alert(
+          'Your browser returned a sandboxed file handle that cannot be used to set a workspace path.\n\n' +
+          'To use the full workspace/dataset linking features (that require real file system paths), run the desktop app (see README) or use the "Link Dataset" button to upload files.'
+        );
+        setUseNativeDialog(false);
+        return;
+      }
+
       setUseNativeDialog(false);
     } catch (error) {
       console.error('Native dialog failed:', error);

@@ -126,6 +126,42 @@ Create a `.env` file in the root directory:
 VITE_API_URL=http://localhost:8000
 ```
 
+### Troubleshooting: CORS and "I can't open a folder"
+
+If you still see CORS errors like:
+
+```
+Blocage d’une requête multiorigine (Cross-Origin Request) : la politique « Same Origin » ne permet pas de consulter la ressource distante située sur http://localhost:8000/api/workspace/groups. Raison : échec de la requête CORS. Code d’état : (null).
+```
+
+Check the following:
+
+- Are you running the backend (FastAPI) on `http://localhost:8000`? If not, start it or update `VITE_API_URL`.
+- When developing in the browser (`npm run dev`), ensure you set `VITE_DEV=true` (our helper scripts do this) so the Vite dev server proxies `/api` requests to the backend and avoids CORS.
+- If you are testing the desktop app via `pywebview` (launcher), `window.pywebview` is only available when the app runs inside the pywebview environment. Trying to call `window.pywebview.api.*` in a regular browser will fail — fallbacks will be used instead.
+
+Specific: "I can't open a folder"
+
+- If the "Open folder" native dialog does nothing or throws errors when clicked in the browser:
+  - That's expected: native dialogs are only available inside pywebview (desktop). In the browser we fall back to HTML file inputs.
+  - To test the native dialogs, run the desktop launcher in dev mode after starting Vite and the backend so the webview points to the dev server:
+
+    Bash/WSL/macOS:
+    ```bash
+    export BACKEND_CMD="cd ../nirs4all && uvicorn main:app --reload --port 8000"
+    npm run dev:desktop:all
+    ```
+
+    PowerShell (Windows):
+    ```powershell
+    $env:BACKEND_CMD = "cd ..\nirs4all && uvicorn main:app --reload --port 8000"
+    npm run dev:desktop:all
+    ```
+
+  - `dev:desktop:all` starts the frontend, the backend, waits for Vite to be ready, then launches `launcher.py` (pywebview). Inside pywebview the `select_folder/select_file` APIs are available.
+
+If the backend is running but you still get CORS errors in the browser: check backend logs — it may not be reachable or may reject CORS. When in doubt, start the backend manually and open the UI in the browser to inspect exact network errors in devtools.
+
 ## Running frontend and backend together (single command)
 
 To simplify development you can start both the frontend (Vite) and your backend API at once using the `dev:all` script.

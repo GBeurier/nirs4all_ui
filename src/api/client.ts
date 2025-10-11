@@ -1,9 +1,8 @@
 // API Client for FastAPI backend
-// When developing locally with Vite dev server, use a relative base URL
-// so the Vite proxy configured in vite.config.ts will forward requests
-// to the backend and avoid CORS issues. In production use VITE_API_URL
-// or default to localhost.
-const API_BASE_URL = import.meta.env.VITE_DEV === 'true' ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
+// When developing with Vite, use a relative base URL so the Vite dev server
+// proxy forwards requests to the backend and avoids CORS in the browser.
+// import.meta.env.DEV is provided by Vite (true in dev server).
+const API_BASE_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
 class ApiClient {
   private baseUrl: string;
