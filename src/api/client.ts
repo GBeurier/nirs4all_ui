@@ -1,5 +1,9 @@
 // API Client for FastAPI backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// When developing locally with Vite dev server, use a relative base URL
+// so the Vite proxy configured in vite.config.ts will forward requests
+// to the backend and avoid CORS issues. In production use VITE_API_URL
+// or default to localhost.
+const API_BASE_URL = import.meta.env.VITE_DEV === 'true' ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
 class ApiClient {
   private baseUrl: string;
@@ -148,6 +152,42 @@ class ApiClient {
     return this.request(`/api/predictions/${predictionId}`, {
       method: 'DELETE',
     });
+  }
+
+  // Saved pipelines API
+  async listPipelines(): Promise<{ pipelines: any[] }> {
+    return this.request('/api/pipeline');
+  }
+
+  async getPipeline(pipelineId: string): Promise<any> {
+    return this.request(`/api/pipeline/${encodeURIComponent(pipelineId)}`);
+  }
+
+  async savePipeline(name: string, description: string, pipeline: any): Promise<any> {
+    return this.request('/api/pipeline', {
+      method: 'POST',
+      body: JSON.stringify({ name, description, pipeline }),
+    });
+  }
+
+  async saveFile(path: string, content: string): Promise<any> {
+    return this.request('/api/files/save', {
+      method: 'POST',
+      body: JSON.stringify({ path, content }),
+    });
+  }
+
+  // Workspace selection
+  async selectWorkspace(path: string, options: { create?: boolean; persist_global?: boolean; persist_env?: boolean } = {}) {
+    return this.request('/api/workspace/select', {
+      method: 'POST',
+      body: JSON.stringify({ path, ...options }),
+    });
+  }
+
+  // Predictions counts
+  async getPredictionsCounts(): Promise<any> {
+    return this.request('/api/predictions/counts');
   }
 }
 

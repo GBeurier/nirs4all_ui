@@ -11,3 +11,26 @@ body {
   background-color: #2563eb;
   color: white;
 }
+
+/* Ensure the active sidebar link (react-router NavLink sets aria-current="page")
+   receives the same coloring as the mockup: full blue background and white text/icon */
+.nav-sidebar a[aria-current="page"] {
+  background-color: #2563eb; /* tailwind bg-blue-600 */
+  color: #ffffff; /* text-white */
+}
+
+/* Make sure icons inside active links are white (feather icons use stroke=currentColor) */
+.nav-sidebar a[aria-current="page"] svg {
+  color: #ffffff;
+  stroke: currentColor;
+}
+
+/* nav icon background */
+.nav-sidebar .icon-bg {
+  background-color: transparent;
+}
+
+.nav-sidebar a[aria-current="page"] .icon-bg {
+  background-color: #1d4ed8; /* slightly darker blue */
+  color: #ffffff;
+}

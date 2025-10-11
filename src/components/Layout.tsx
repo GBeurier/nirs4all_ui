@@ -12,28 +12,37 @@ const Layout = () => {
 
   return (
     <div className="flex h-screen">
-      {/* Navigation Sidebar */}
+      {/* Navigation Sidebar - styled to match mockup */}
       <div className="w-64 bg-white shadow-lg border-r border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <h1 className="text-xl font-bold text-gray-800 flex items-center">
             <Activity className="mr-2 text-blue-600" size={24} />
-            NIRS4ALL
+            NIRSCAPE
           </h1>
           <p className="text-sm text-gray-600 mt-1">NIRS Analysis Platform</p>
         </div>
-        <nav className="mt-6">
+
+        <nav className="mt-6 nav-sidebar">
           {navItems.map(({ path, label, icon: Icon }) => (
             <NavLink
               key={path}
               to={path}
-              className={({ isActive }) =>
-                `sidebar-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 transition-colors ${
-                  isActive ? 'active' : ''
-                }`
-              }
+              className={({ isActive }) => `sidebar-item flex items-center w-full px-6 py-3 rounded-r-lg transition-colors ${isActive ? 'bg-blue-600 text-white active' : 'text-gray-700 hover:bg-blue-50'}`}
             >
-              <Icon className="mr-3" size={20} />
-              {label}
+              {({ isActive }) => (
+                <>
+                  {/* Circular icon background to make the active state obvious. Background is handled
+                      both by inline style and by the active class so the icon circle and svg stroke
+                      always follow the active state */}
+                  <span
+                    className={`mr-3 inline-flex items-center justify-center w-10 h-10 rounded-full icon-bg ${isActive ? 'text-white' : 'text-gray-500'}`}
+                    style={{ backgroundColor: isActive ? '#1d4ed8' : 'transparent' }}
+                  >
+                    <Icon stroke="currentColor" fill="none" className="w-5 h-5" />
+                  </span>
+                  <span className={`font-medium ${isActive ? 'text-white' : 'text-gray-900'}`}>{label}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>

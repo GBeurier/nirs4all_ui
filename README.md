@@ -126,6 +126,47 @@ Create a `.env` file in the root directory:
 VITE_API_URL=http://localhost:8000
 ```
 
+## Running frontend and backend together (single command)
+
+To simplify development you can start both the frontend (Vite) and your backend API at once using the `dev:all` script.
+
+This script expects an environment variable `BACKEND_CMD` that contains the shell command used to start your backend server (for example a `uvicorn` command). The frontend will be started with `VITE_DEV=true` so API calls are proxied by Vite and avoid CORS issues.
+
+Examples:
+
+- Bash / macOS / WSL:
+
+```bash
+# Example: start backend with uvicorn (adjust module name/path as needed)
+export BACKEND_CMD="cd ../nirs4all && uvicorn main:app --reload --port 8000"
+npm run dev:all
+```
+
+- PowerShell (Windows):
+
+```powershell
+# Set the environment variable for the current session and run
+$env:BACKEND_CMD = "cd ..\nirs4all && uvicorn main:app --reload --port 8000"
+npm run dev:all
+```
+
+Notes:
+
+- If `BACKEND_CMD` is not set the helper will print instructions and exit.
+- The default example assumes your backend can be started with `uvicorn main:app` from the `nirs4all` directory. If your backend uses a different entrypoint, update `BACKEND_CMD` accordingly.
+- The `dev:all` script runs both processes and prefixes console output so you can see which messages come from frontend or backend. Press Ctrl+C to stop both processes.
+
+If you prefer a simpler approach without the helper script, you can also start both processes in two separate terminals:
+
+```powershell
+# Terminal 1 (frontend)
+npm run dev
+
+# Terminal 2 (backend)
+# from the backend project directory
+uvicorn main:app --reload --port 8000
+```
+
 ## Building for Production
 
 ### 1. Build the React App

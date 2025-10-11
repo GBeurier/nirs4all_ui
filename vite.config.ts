@@ -10,4 +10,14 @@ export default defineConfig({
       },
     }),
   ],
+  // During development proxy API requests to the backend to avoid CORS errors
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })

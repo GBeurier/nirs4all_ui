@@ -56,3 +56,11 @@ export interface WorkspaceState {
   groups: Group[];
   selectedDatasets: Set<string>;
 }
+
+export interface SavedPipeline {
+  id: string;
+  name: string;
+  description?: string;
+  pipeline: any;
+  created_at?: string;
+}
