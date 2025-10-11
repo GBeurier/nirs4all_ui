@@ -12,9 +12,8 @@ class Api:
 
     def select_folder(self):
         """Open native folder picker dialog"""
-        result = webview.windows[0].create_file_dialog(
-            webview.FOLDER_DIALOG,
-            allow_multiple=False
+        result = webview.windows[0].create_folder_dialog(
+            'Select Folder'
         )
         if result and len(result) > 0:
             return result[0]

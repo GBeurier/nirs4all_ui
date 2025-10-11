@@ -1,0 +1,153 @@
+{
+  "path": "D:\\Workspace\\ML\\NIRS\\nirs4all_ui",
+  "name": "nirs4all_ui",
+  "created_at": "2025-10-11T23:58:33.854886",
+  "last_accessed": "2025-10-12T01:54:31.674240",
+  "datasets": [
+    {
+      "id": "dataset_1",
+      "name": "regression",
+      "path": "D:\\Workspace\\ML\\NIRS\\nirs4all\\examples\\sample_data\\regression",
+      "linked_at": "2025-10-11T23:58:50.813333",
+      "num_samples": 130,
+      "num_features": 2151,
+      "task_type": "unknown",
+      "sources": 1,
+      "config": {
+        "delimiter": ",",
+        "decimal_separator": ".",
+        "has_header": true,
+        "x_source_mode": "stack"
+      },
+      "files": [
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression/Xcal.csv.gz",
+          "type": "x",
+          "partition": "train",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression/Xval.csv.gz",
+          "type": "x",
+          "partition": "test",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression/Ycal.csv.gz",
+          "type": "y",
+          "partition": "train",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression/Yval.csv.gz",
+          "type": "y",
+          "partition": "test",
+          "source_id": null
+        }
+      ],
+      "num_targets": 1,
+      "num_sources": 1,
+      "last_loaded": "2025-10-12T01:53:24.708076"
+    },
+    {
+      "id": "dataset_2",
+      "name": "regression_2",
+      "path": "D:\\Workspace\\ML\\NIRS\\nirs4all\\examples\\sample_data\\regression_2",
+      "linked_at": "2025-10-12T01:14:03.193006",
+      "num_samples": 885,
+      "num_features": 125,
+      "task_type": "unknown",
+      "sources": 1,
+      "config": {
+        "delimiter": ",",
+        "decimal_separator": ".",
+        "has_header": true,
+        "x_source_mode": "stack"
+      },
+      "files": [
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression_2/Xtrain.csv",
+          "type": "x",
+          "partition": "train",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression_2/Xtest.csv",
+          "type": "x",
+          "partition": "test",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression_2/Ytrain.csv",
+          "type": "y",
+          "partition": "train",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression_2/Ytest.csv",
+          "type": "y",
+          "partition": "test",
+          "source_id": null
+        }
+      ],
+      "num_targets": 1,
+      "num_sources": 1,
+      "last_loaded": "2025-10-12T01:53:33.174230"
+    },
+    {
+      "id": "dataset_3",
+      "name": "regression_3",
+      "path": "D:\\Workspace\\ML\\NIRS\\nirs4all\\examples\\sample_data\\regression_3",
+      "linked_at": "2025-10-12T01:38:50.442778",
+      "num_samples": 890,
+      "num_features": 128,
+      "num_targets": 1,
+      "task_type": "unknown",
+      "sources": 1,
+      "config": {
+        "delimiter": ",",
+        "decimal_separator": ".",
+        "has_header": true,
+        "x_source_mode": "stack"
+      },
+      "files": [
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression_3/Xtrain.csv",
+          "type": "x",
+          "partition": "train",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression_3/Xtest.csv",
+          "type": "x",
+          "partition": "test",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression_3/Ytrain.csv",
+          "type": "y",
+          "partition": "train",
+          "source_id": null
+        },
+        {
+          "path": "D:/Workspace/ML/NIRS/nirs4all/examples/sample_data/regression_3/Ytest.csv",
+          "type": "y",
+          "partition": "test",
+          "source_id": null
+        }
+      ],
+      "num_sources": 1,
+      "last_loaded": "2025-10-12T01:53:42.426886"
+    }
+  ],
+  "pipelines": [],
+  "groups": [
+    {
+      "id": "group_1",
+      "name": "Banana project",
+      "dataset_ids": [
+        "dataset_2"
+      ]
+    }
+  ]
+}

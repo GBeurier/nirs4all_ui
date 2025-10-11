@@ -15,11 +15,13 @@ const Layout = () => {
       {/* Navigation Sidebar - styled to match mockup */}
       <div className="w-64 bg-white shadow-lg border-r border-gray-200">
         <div className="p-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-800 flex items-center">
-            <Activity className="mr-2 text-blue-600" size={24} />
-            NIRSCAPE
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">NIRS Analysis Platform</p>
+            <div className="flex items-center justify-center">
+              <img
+          src="/nirs4all_logo.png"
+          alt="nirs4all"
+          className="h-32 w-auto"
+              />
+            </div>
         </div>
 
         <nav className="mt-6 nav-sidebar">

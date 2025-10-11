@@ -1,15 +1,38 @@
 // Core types for the application
 
+export interface DatasetFile {
+  path: string;
+  type: 'x' | 'y' | 'group';  // x=features, y=targets, group=metadata
+  partition: 'train' | 'test';
+  source_id?: number;  // For multiple X sources
+}
+
 export interface Dataset {
   id: string;
   name: string;
-  path: string;
+  path: string;  // Base path (folder or primary file)
   linked_at?: string;
   config?: DatasetConfig;
+  files?: DatasetFile[];  // Individual file configurations
   groups?: string[];
+  num_samples?: number;
+  num_features?: number;
+  num_targets?: number;
+  num_sources?: number;
+  last_loaded?: string;
 }
 
 export interface DatasetConfig {
+  // CSV parsing options
+  delimiter?: string;
+  decimal_separator?: string;
+  has_header?: boolean;
+  header_type?: string;
+
+  // Multi-source X handling
+  x_source_mode?: 'stack' | 'concat';  // stack=vertical (default), concat=horizontal
+
+  // Legacy preprocessing/features
   preprocessing?: {
     method?: string;
     params?: Record<string, any>;

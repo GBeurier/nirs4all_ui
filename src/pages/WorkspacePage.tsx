@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Link2, X, Users, Folder, Database as DBIcon, GitBranch, BarChart2 } from 'feather-icons-react';
+import { RefreshCw, Plus, Trash2, Users, Folder, Database as DBIcon, GitBranch, BarChart2, UserPlus } from 'feather-icons-react';
 import { apiClient } from '../api/client';
-import type { Dataset, Group } from '../types';
+import type { Dataset, Group, DatasetFile } from '../types';
 import DatasetTable from '../components/DatasetTable';
 import GroupsModal from '../components/GroupsModal';
+import AddDatasetModal from '../components/AddDatasetModal';
+import EditDatasetModal from '../components/EditDatasetModal_v2';
 import { selectFolder } from '../utils/fileDialogs';
 
 const WorkspacePage = () => {
@@ -14,6 +16,14 @@ const WorkspacePage = () => {
   const [showGroupsModal, setShowGroupsModal] = useState(false);
   const [stats, setStats] = useState({ datasets: 0, predictions: 0, pipelines: 0 });
   const [backendAvailable, setBackendAvailable] = useState<boolean>(true);
+  const [workspacePathInput, setWorkspacePathInput] = useState<string>('');
+  const [datasetPathInput, setDatasetPathInput] = useState<string>('');
+  const [selectedGroupForBulk, setSelectedGroupForBulk] = useState<string>('');
+  const [showAddDatasetModal, setShowAddDatasetModal] = useState(false);
+  const [showEditDatasetModal, setShowEditDatasetModal] = useState(false);
+  const [editingDataset, setEditingDataset] = useState<Dataset | null>(null);
+  const [showNewGroupModal, setShowNewGroupModal] = useState(false);
+  const isDesktop = typeof window !== 'undefined' && !!(window as any).pywebview?.api;
 
   // Load workspace data
   const loadWorkspace = async () => {
@@ -60,55 +70,11 @@ const WorkspacePage = () => {
     };
   }, []);
 
-  // Create hidden file inputs programmatically to avoid TypeScript complaints
-  useEffect(() => {
-    // Workspace hidden input
-    const existingWorkspace = document.getElementById('workspace-hidden-input');
-    if (!existingWorkspace) {
-      const inp = document.createElement('input');
-      inp.type = 'file';
-      inp.id = 'workspace-hidden-input';
-      // @ts-ignore - vendor attribute
-      inp.setAttribute('webkitdirectory', '');
-      inp.style.display = 'none';
-      inp.addEventListener('change', async (ev: any) => {
-        const f = ev.target.files && ev.target.files[0];
-        if (!f) return;
-        // @ts-ignore
-        const rel = f.webkitRelativePath || ''; const folderName = rel.split('/')[0] || f.path || '';
-        ev.target.value = '';
-        if (folderName) await handleSelectWorkspace(folderName);
-      });
-      document.body.appendChild(inp);
-    }
-
-    // Dataset hidden input
-    const existingDataset = document.getElementById('dataset-hidden-input');
-    if (!existingDataset) {
-      const inp2 = document.createElement('input');
-      inp2.type = 'file';
-      inp2.id = 'dataset-hidden-input';
-      // @ts-ignore
-      inp2.setAttribute('webkitdirectory', '');
-      inp2.multiple = true;
-      inp2.style.display = 'none';
-      inp2.addEventListener('change', async (ev: any) => {
-        const f = ev.target.files && ev.target.files[0];
-        if (!f) return;
-        // @ts-ignore
-        const rel = f.webkitRelativePath || ''; const folderName = rel.split('/')[0] || f.path || '';
-        ev.target.value = '';
-        if (folderName) await handleLinkDataset(folderName);
-      });
-      document.body.appendChild(inp2);
-    }
-    return () => {
-      const w = document.getElementById('workspace-hidden-input');
-      if (w) w.remove();
-      const d = document.getElementById('dataset-hidden-input');
-      if (d) d.remove();
-    };
-  }, []);
+  // NOTE: We intentionally DO NOT create hidden <input webkitdirectory> fallbacks in browser mode.
+  // Those inputs trigger the browser upload confirmation dialog ("Voulez-vous vraiment envoyer tous les fichiers ... ?")
+  // and cannot provide absolute filesystem paths to the backend. To link a workspace or a dataset with an
+  // absolute path you must run the desktop application (PyWebView) which exposes native OS dialogs and
+  // absolute paths to the backend.
 
   // Handle dataset selection
   const handleSelectDataset = (datasetId: string, selected: boolean) => {
@@ -124,13 +90,56 @@ const WorkspacePage = () => {
   };
 
   // Handle link dataset
-  const handleLinkDataset = async (path: string) => {
+  const handleLinkDataset = async (path: string, customConfig?: any) => {
     try {
-      await apiClient.linkDataset(path);
+      await apiClient.linkDataset(path, customConfig);
       await loadWorkspace();
     } catch (error) {
       console.error('Failed to link dataset:', error);
-      alert('Failed to link dataset');
+      const msg = (error as any)?.message || String(error);
+      alert('Failed to link dataset: ' + msg + '\n\nTip: To link local folders with absolute paths use the desktop app (Run the launcher).');
+    }
+  };
+
+  // Handle edit dataset
+  const handleEditDataset = (dataset: Dataset) => {
+    setEditingDataset(dataset);
+    setShowEditDatasetModal(true);
+  };
+
+  // Handle save dataset config
+  const handleSaveDatasetConfig = async (datasetId: string, config: any, files: DatasetFile[]) => {
+    try {
+      // Call load endpoint to save config and load dataset
+      await apiClient.loadDataset(datasetId, config, files);
+      await loadWorkspace();
+    } catch (error) {
+      console.error('Failed to save and load dataset:', error);
+      throw error;
+    }
+  };
+
+  // Handle refresh all datasets
+  const handleRefreshAll = async () => {
+    if (datasets.length === 0) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Refresh all datasets in parallel
+      await Promise.all(
+        datasets.map(ds => apiClient.refreshDataset(ds.id).catch(err => {
+          console.error(`Failed to refresh dataset ${ds.name}:`, err);
+          return null;
+        }))
+      );
+      await loadWorkspace();
+    } catch (error) {
+      console.error('Failed to refresh datasets:', error);
+      alert('Failed to refresh some datasets. Check console for details.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -157,6 +166,33 @@ const WorkspacePage = () => {
     }
   };
 
+  // Handle bulk group allocation
+  const handleBulkAllocateGroup = async () => {
+    if (selectedDatasets.size === 0) {
+      alert('Please select datasets to assign to a group');
+      return;
+    }
+
+    if (!selectedGroupForBulk) {
+      alert('Please select a group');
+      return;
+    }
+
+    try {
+      await Promise.all(
+        Array.from(selectedDatasets).map((datasetId) =>
+          apiClient.addDatasetToGroup(selectedGroupForBulk, datasetId)
+        )
+      );
+      setSelectedDatasets(new Set());
+      setSelectedGroupForBulk('');
+      await loadWorkspace();
+    } catch (error) {
+      console.error('Failed to allocate datasets to group:', error);
+      alert('Failed to allocate datasets to group');
+    }
+  };
+
   // Handle select workspace (change workspace folder)
   const handleSelectWorkspace = async (path: string) => {
     try {
@@ -165,12 +201,11 @@ const WorkspacePage = () => {
       await loadStats();
     } catch (error: any) {
       console.error('Failed to select workspace:', error);
-      // Detect network/CORS errors
       const msg = String(error?.message || error);
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('API Error: 0')) {
         alert('Failed to contact backend. Ensure the backend is running on http://localhost:8000 and use `npm run dev:all` to start both frontend and backend.');
       } else {
-        alert('Failed to change workspace');
+        alert('Failed to change workspace: ' + msg + '\n\nTip: To pick a local folder path you need to use the desktop app (PyWebView) which provides absolute paths.');
       }
     }
   };
@@ -195,6 +230,54 @@ const WorkspacePage = () => {
         </div>
       )}
       <div className="max-w-7xl mx-auto">
+        {!isDesktop && (
+          <div className="mb-4 p-3 rounded bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800">
+            You are running the web version in a browser. To select local folders with absolute
+            filesystem paths (required to link datasets and set the workspace) please use the desktop
+            application (launcher). The desktop app provides native OS dialogs and will avoid
+            browser upload prompts.
+            <div className="mt-3">
+              <p className="text-sm text-gray-700 mb-2">Development helper: paste an absolute path below to test linking without the desktop app.</p>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="D:\\path\\to\\workspace"
+                  value={workspacePathInput}
+                  onChange={(e) => setWorkspacePathInput(e.target.value)}
+                  className="flex-1 px-2 py-1 border rounded"
+                />
+                <button
+                  onClick={async () => {
+                    if (!workspacePathInput) return alert('Paste a workspace path first');
+                    await handleSelectWorkspace(workspacePathInput);
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white rounded"
+                >
+                  Set workspace
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="D:\\path\\to\\dataset"
+                  value={datasetPathInput}
+                  onChange={(e) => setDatasetPathInput(e.target.value)}
+                  className="flex-1 px-2 py-1 border rounded"
+                />
+                <button
+                  onClick={async () => {
+                    if (!datasetPathInput) return alert('Paste a dataset path first');
+                    await handleLinkDataset(datasetPathInput);
+                  }}
+                  className="px-3 py-1 bg-green-600 text-white rounded"
+                >
+                  Link dataset (paste)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Workspace</h1>
@@ -209,9 +292,8 @@ const WorkspacePage = () => {
                 try {
                   const folderPath = await selectFolder();
                   if (!folderPath) {
-                    // No native picker available or user canceled: fallback to hidden input
-                    const el = document.getElementById('workspace-hidden-input');
-                    if (el) el.click();
+                    // No native picker available in this browser environment.
+                    alert('No native folder picker available in this browser.\n\nTo pick a workspace folder with an absolute path please run the desktop app (launcher).');
                     return;
                   }
 
@@ -221,19 +303,8 @@ const WorkspacePage = () => {
                     return;
                   }
 
-                  // If browser returned a FileSystem handle, we cannot get absolute path
-                  // Prompt user to run the desktop app (pywebview) which provides real filesystem paths
-                  const bashExample = 'export BACKEND_CMD="cd ../nirs4all && uvicorn main:app --reload --port 8000"\nnpm run dev:desktop:all';
-                  const psExample = '$env:BACKEND_CMD = "cd ..\\nirs4all && uvicorn main:app --reload --port 8000"\nnpm run dev:desktop:all';
-                  if (confirm('Your browser returned a sandboxed file handle which cannot be translated to an absolute path for the backend.\n\nTo pick a folder and let the backend know its absolute path, run the desktop app. Click OK to copy the starter commands for your shell.')) {
-                    try {
-                      await navigator.clipboard.writeText(bashExample + '\n\nPowerShell:\n' + psExample);
-                      alert('Starter commands copied to clipboard. Paste them in your shell to start both services.');
-                    } catch (e) {
-                      // Clipboard may be unsupported
-                      alert('Please run the desktop dev script as described in the README:\n' + bashExample + '\n\nPowerShell:\n' + psExample);
-                    }
-                  }
+                  // If browser returned a FileSystem handle, show helpful message
+                  alert('Browser-based folder selection is not supported for workspace operations. Please use the desktop application for full functionality.');
                   return;
                 } catch (err) {
                   console.error('Failed to select workspace folder', err);
@@ -289,61 +360,82 @@ const WorkspacePage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="sm:col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
-            <button
-              onClick={loadWorkspace}
-              disabled={loading}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+          <div className="sm:col-span-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            {/* Left side buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefreshAll}
+                disabled={loading || datasets.length === 0}
+                title="Refresh all datasets"
+                className="inline-flex items-center p-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
 
-            <button
-              onClick={async () => {
-                try {
-                  const folderPath = await selectFolder();
-                  if (!folderPath) {
-                    // fallback to hidden input
-                    const el = document.getElementById('dataset-hidden-input');
-                    if (el) el.click();
-                    return;
-                  }
-                  if (typeof folderPath === 'string') {
-                    await handleLinkDataset(folderPath);
-                    return;
-                  }
-                  // FileSystem handle case
-                  alert('Your browser provided a sandboxed file handle. To link a local folder path to the backend, please run the desktop app as described in the README.');
-                  return;
-                } catch (err) {
-                  console.error('Failed to select dataset folder', err);
-                  alert('Failed to select dataset folder');
-                }
-              }}
-              title="Open folder or select files to link as dataset"
-              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <Link2 className="h-4 w-4 mr-2" />
-              Link Dataset
-            </button>
+              <button
+                onClick={() => setShowAddDatasetModal(true)}
+                title="Add dataset"
+                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Dataset
+              </button>
 
-            <button
-              onClick={handleUnlinkDataset}
-              disabled={selectedDatasets.size === 0}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Unlink
-            </button>
+              <button
+                onClick={handleUnlinkDataset}
+                disabled={selectedDatasets.size === 0}
+                title="Delete selected datasets"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </button>
+            </div>
 
-            <button
-              onClick={() => setShowGroupsModal(true)}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Groups
-            </button>
+            {/* Right side buttons */}
+            <div className="flex items-center gap-2">
+              {/* Bulk Group Allocation */}
+              {selectedDatasets.size > 0 && (
+                <>
+                  <select
+                    value={selectedGroupForBulk}
+                    onChange={(e) => setSelectedGroupForBulk(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <option value="">Select group...</option>
+                    {groups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleBulkAllocateGroup}
+                    disabled={!selectedGroupForBulk}
+                    className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Assign to Group
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => setShowNewGroupModal(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Group
+              </button>
+
+              <button
+                onClick={() => setShowGroupsModal(true)}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Manage Groups
+              </button>
+            </div>
           </div>
         </div>
 
@@ -353,9 +445,28 @@ const WorkspacePage = () => {
           selectedDatasets={selectedDatasets}
           onSelectDataset={handleSelectDataset}
           onRefresh={loadWorkspace}
+          onEditDataset={handleEditDataset}
         />
 
         {/* Modals */}
+        {showAddDatasetModal && (
+          <AddDatasetModal
+            onClose={() => setShowAddDatasetModal(false)}
+            onAdd={handleLinkDataset}
+          />
+        )}
+
+        {showEditDatasetModal && editingDataset && (
+          <EditDatasetModal
+            dataset={editingDataset}
+            onClose={() => {
+              setShowEditDatasetModal(false);
+              setEditingDataset(null);
+            }}
+            onSave={handleSaveDatasetConfig}
+          />
+        )}
+
         {showGroupsModal && (
           <GroupsModal
             groups={groups}
@@ -363,6 +474,84 @@ const WorkspacePage = () => {
             onClose={() => setShowGroupsModal(false)}
             onRefresh={loadWorkspace}
           />
+        )}
+
+        {showNewGroupModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div className="flex justify-between items-center p-6 border-b">
+                <h2 className="text-xl font-semibold">Create New Group</h2>
+                <button
+                  onClick={() => setShowNewGroupModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <Plus className="h-6 w-6 rotate-45" />
+                </button>
+              </div>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const name = formData.get('groupName') as string;
+                  const description = formData.get('groupDescription') as string;
+
+                  if (!name.trim()) {
+                    alert('Please enter a group name');
+                    return;
+                  }
+
+                  try {
+                    await apiClient.createGroup(name.trim());
+                    await loadWorkspace();
+                    setShowNewGroupModal(false);
+                  } catch (error) {
+                    console.error('Failed to create group:', error);
+                    alert('Failed to create group');
+                  }
+                }}
+                className="p-6 space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Group Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="groupName"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Enter group name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="groupDescription"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Optional description"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewGroupModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
+                  >
+                    Create Group
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </div>
     </div>

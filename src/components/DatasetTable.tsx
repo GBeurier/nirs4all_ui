@@ -1,7 +1,7 @@
-import { PlusCircle } from 'feather-icons-react';
+import { Eye, TrendingUp, X, Edit } from 'feather-icons-react';
 import type { Dataset, Group } from '../types';
-import { useState } from 'react';
 import { apiClient } from '../api/client';
+import { useNavigate } from 'react-router-dom';
 
 interface DatasetTableProps {
   datasets: Dataset[];
@@ -9,6 +9,7 @@ interface DatasetTableProps {
   selectedDatasets: Set<string>;
   onSelectDataset: (datasetId: string, selected: boolean) => void;
   onRefresh: () => void;
+  onEditDataset?: (dataset: Dataset) => void;
 }
 
 const DatasetTable = ({
@@ -17,22 +18,32 @@ const DatasetTable = ({
   selectedDatasets,
   onSelectDataset,
   onRefresh,
+  onEditDataset,
 }: DatasetTableProps) => {
+  const navigate = useNavigate();
+
   const getGroupsForDataset = (datasetId: string): Group[] => {
-    return groups.filter((group) => group.dataset_ids.includes(datasetId));
+    return groups.filter((group) => (group as any).dataset_ids?.includes(datasetId));
   };
 
-  const [addingFor, setAddingFor] = useState<string | null>(null);
-
-  const handleAddToGroup = async (datasetId: string, groupId: string) => {
+  const handleRemoveFromGroup = async (datasetId: string, groupId: string) => {
     try {
-      await apiClient.addDatasetToGroup(groupId, datasetId);
-      setAddingFor(null);
+      await apiClient.removeDatasetFromGroup(groupId, datasetId);
       onRefresh();
     } catch (err) {
-      console.error('Failed to add dataset to group:', err);
-      alert('Failed to add dataset to group');
+      console.error('Failed to remove dataset from group:', err);
+      alert('Failed to remove dataset from group');
     }
+  };
+
+  const handleViewDataset = (dataset: Dataset) => {
+    // TODO: Implement dataset detail view
+    alert(`View dataset: ${dataset.name}\nPath: ${dataset.path}\nSamples: ${dataset.num_samples || 'N/A'}\nFeatures: ${dataset.num_features || 'N/A'}`);
+  };
+
+  const handleGoToPredictions = (datasetId: string) => {
+    // Navigate to predictions page with dataset filter
+    navigate(`/predictions?dataset=${datasetId}`);
   };
 
   return (
@@ -54,7 +65,7 @@ const DatasetTable = ({
               Name
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Path
+              Samples / Features / Targets
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Groups
@@ -85,10 +96,22 @@ const DatasetTable = ({
                     />
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {dataset.name}
+                    <span
+                      className="cursor-help"
+                      title={dataset.path}
+                    >
+                      {dataset.name}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 font-mono">
-                    {dataset.path}
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {dataset.num_samples && dataset.num_features ? (
+                      <span className="font-mono">
+                        {dataset.num_samples} / {dataset.num_features}
+                        {dataset.num_targets !== undefined && dataset.num_targets !== null ? ` / ${dataset.num_targets}` : ''}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {datasetGroups.length > 0 ? (
@@ -96,9 +119,16 @@ const DatasetTable = ({
                         {datasetGroups.map((group) => (
                           <span
                             key={group.id}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
                           >
                             {group.name}
+                            <button
+                              onClick={() => handleRemoveFromGroup(dataset.id, group.id)}
+                              className="hover:bg-blue-200 rounded-full p-0.5"
+                              title="Remove from group"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                           </span>
                         ))}
                       </div>
@@ -107,27 +137,31 @@ const DatasetTable = ({
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    <button
-                      className="text-blue-600 hover:text-blue-800"
-                      title="Add to group"
-                      onClick={() => setAddingFor(dataset.id)}
-                    >
-                      <PlusCircle className="h-5 w-5" />
-                    </button>
-                    {addingFor === dataset.id && (
-                      <div className="mt-1 flex gap-2 items-center">
-                        {groups.map((group) => (
-                          <button
-                            key={group.id}
-                            className="text-sm font-medium text-gray-500 border rounded px-2 py-1"
-                            onClick={() => handleAddToGroup(dataset.id, group.id)}
-                          >
-                            {group.name}
-                          </button>
-                        ))}
-                        <button onClick={() => setAddingFor(null)} className="text-sm text-red-500">Cancel</button>
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      <button
+                        className="text-gray-600 hover:text-blue-600"
+                        title="View dataset details"
+                        onClick={() => handleViewDataset(dataset)}
+                      >
+                        <Eye className="h-5 w-5" />
+                      </button>
+                      {onEditDataset && (
+                        <button
+                          className="text-gray-600 hover:text-orange-600"
+                          title="Edit dataset configuration"
+                          onClick={() => onEditDataset(dataset)}
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                      )}
+                      <button
+                        className="text-gray-600 hover:text-green-600"
+                        title="View predictions for this dataset"
+                        onClick={() => handleGoToPredictions(dataset.id)}
+                      >
+                        <TrendingUp className="h-5 w-5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

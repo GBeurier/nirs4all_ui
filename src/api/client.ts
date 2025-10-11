@@ -38,10 +38,10 @@ class ApiClient {
     return this.request('/api/workspace');
   }
 
-  async linkDataset(path: string): Promise<any> {
+  async linkDataset(path: string, config?: any): Promise<any> {
     return this.request('/api/workspace/link', {
       method: 'POST',
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path, config }),
     });
   }
 
@@ -59,6 +59,25 @@ class ApiClient {
     return this.request(`/api/workspace/dataset/${datasetId}/config`, {
       method: 'PUT',
       body: JSON.stringify(config),
+    });
+  }
+
+  async detectDatasetFiles(datasetId: string): Promise<any> {
+    return this.request(`/api/workspace/dataset/${datasetId}/detect-files`, {
+      method: 'POST',
+    });
+  }
+
+  async loadDataset(datasetId: string, config: any, files: any[]): Promise<any> {
+    return this.request(`/api/workspace/dataset/${datasetId}/load`, {
+      method: 'POST',
+      body: JSON.stringify({ config, files }),
+    });
+  }
+
+  async refreshDataset(datasetId: string): Promise<any> {
+    return this.request(`/api/datasets/${datasetId}/refresh`, {
+      method: 'POST',
     });
   }
 
