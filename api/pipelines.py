@@ -72,7 +72,7 @@ async def get_pipeline(pipeline_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get pipeline: {str(e)}")
 
 
-@router.post("/pipeline")
+@router.post("/pipelines")
 async def save_pipeline(
     name: str = Body(...),
     description: str = Body(...),

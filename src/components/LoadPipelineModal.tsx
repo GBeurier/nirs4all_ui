@@ -20,7 +20,25 @@ const LoadPipelineModal = ({ onLoad, onClose }: LoadPipelineModalProps) => {
   useEffect(() => {
     setLoading(true);
     apiClient.listPipelines()
-      .then((res: any) => setPipelines(res.pipelines || []))
+      .then(async (res: any) => {
+        const pipelinesList = res.pipelines || [];
+        // Fetch full pipeline data for each item
+        const fullPipelines = await Promise.all(
+          pipelinesList.map(async (p: any) => {
+            try {
+              const fullData = await apiClient.getPipeline(p.id);
+              return {
+                ...p,
+                pipeline: fullData.pipeline?.steps || fullData.pipeline || []
+              };
+            } catch (e) {
+              console.error(`Failed to load pipeline ${p.id}:`, e);
+              return { ...p, pipeline: [] };
+            }
+          })
+        );
+        setPipelines(fullPipelines);
+      })
       .catch((e) => setError(e.message || 'Failed to load'))
       .finally(() => setLoading(false));
   }, []);

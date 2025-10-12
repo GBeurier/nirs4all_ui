@@ -174,15 +174,15 @@ class ApiClient {
 
   // Saved pipelines API
   async listPipelines(): Promise<{ pipelines: any[] }> {
-    return this.request('/api/pipeline');
+    return this.request('/api/pipelines');
   }
 
   async getPipeline(pipelineId: string): Promise<any> {
-    return this.request(`/api/pipeline/${encodeURIComponent(pipelineId)}`);
+    return this.request(`/api/pipelines/${encodeURIComponent(pipelineId)}`);
   }
 
   async savePipeline(name: string, description: string, pipeline: any): Promise<any> {
-    return this.request('/api/pipeline', {
+    return this.request('/api/pipelines', {
       method: 'POST',
       body: JSON.stringify({ name, description, pipeline }),
     });
