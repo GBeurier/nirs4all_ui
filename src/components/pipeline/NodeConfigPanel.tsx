@@ -38,7 +38,11 @@ const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     }
 
     // Fallback if no library data
-    setParams(selectedNode.params || {});
+    const fallbackDefaults = selectedNode.meta?.defaultParams ?? {};
+    setParams({
+      ...fallbackDefaults,
+      ...(selectedNode.params || {}),
+    });
     setComponentDef(null);
   }, [selectedNodeId, selectedNode, libraryData]);
 
@@ -163,41 +167,51 @@ const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
       </div>
 
       <div className="space-y-4">
-        {componentDef && componentDef.editableParams.length > 0 ? (
-          <>
-            <div className="space-y-3">
-              {componentDef.editableParams.map((paramDef) => (
-                <div key={paramDef.name} className="space-y-1">
-                  <label className="block">
-                    <span className="text-sm font-medium text-gray-700">
-                      {paramDef.name}
-                      {paramDef.type && (
-                        <span className="ml-2 text-xs text-gray-500">({paramDef.type})</span>
-                      )}
-                    </span>
-                    {paramDef.description && paramDef.type !== 'boolean' && (
-                      <span className="block text-xs text-gray-500 mb-1">
-                        {paramDef.description}
+        {(() => {
+          const editableParams = componentDef?.editableParams ?? (selectedNode?.meta?.editableParams as ParamDefinition[] | undefined) ?? [];
+          if (editableParams.length === 0) {
+            return null;
+          }
+          return (
+            <>
+              <div className="space-y-3">
+                {editableParams.map((paramDef) => (
+                  <div key={paramDef.name} className="space-y-1">
+                    <label className="block">
+                      <span className="text-sm font-medium text-gray-700">
+                        {paramDef.name}
+                        {paramDef.type && (
+                          <span className="ml-2 text-xs text-gray-500">({paramDef.type})</span>
+                        )}
                       </span>
-                    )}
-                  </label>
-                  {renderParamInput(paramDef)}
-                </div>
-              ))}
-            </div>
-            <div className="pt-2 border-t">
-              <button
-                onClick={handleSaveParams}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
-              >
-                Save Configuration
-              </button>
+                      {paramDef.description && paramDef.type !== 'boolean' && (
+                        <span className="block text-xs text-gray-500 mb-1">
+                          {paramDef.description}
+                        </span>
+                      )}
+                    </label>
+                    {renderParamInput(paramDef)}
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2 border-t">
+                <button
+                  onClick={handleSaveParams}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                >
+                  Save Configuration
+                </button>
+              </div>
+            </>
+          );
+        })() || (
+          <>
+            <div className="text-sm text-gray-500 py-4 text-center">
+              {componentDef || selectedNode?.meta
+                ? 'No configurable parameters for this component'
+                : 'Loading component definition...'}
             </div>
           </>
-        ) : (
-          <div className="text-sm text-gray-500 py-4 text-center">
-            {componentDef ? 'No configurable parameters for this component' : 'Loading component definition...'}
-          </div>
         )}
       </div>
     </div>

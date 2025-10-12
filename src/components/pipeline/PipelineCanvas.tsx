@@ -2,8 +2,19 @@ import React from 'react';
 import { SortableTree, type TreeItem as BaseTreeItem, type RenderItemProps, type TreeItems, TreeItemStructure } from '@clevertask/react-sortable-tree';
 import '@clevertask/react-sortable-tree/dist/react-sortable-tree.css';
 import { Trash2 } from 'feather-icons-react';
-import type { ComponentLibraryJSON } from './libraryDataLoader';
+import type { ComponentLibraryJSON, ParamDefinition } from './libraryDataLoader';
 import { getCategoryInfo, isChildAllowed } from './libraryDataLoader';
+
+export interface NodeMetadata {
+  classPath?: string;
+  functionPath?: string;
+  defaultParams?: Record<string, any>;
+  categoryId?: string;
+  subcategoryId?: string;
+  estimatorType?: string;
+  editableParams?: ParamDefinition[];
+  origin?: 'library' | 'imported';
+}
 
 export interface TreeNode extends BaseTreeItem {
   id: string;
@@ -14,6 +25,7 @@ export interface TreeNode extends BaseTreeItem {
   shortName?: string;
   nodeType?: 'container' | 'generation' | 'regular';
   children: TreeNode[];
+  meta?: NodeMetadata;
 }
 
 interface PipelineCanvasProps {

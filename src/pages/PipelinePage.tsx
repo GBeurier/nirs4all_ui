@@ -63,6 +63,34 @@ const PipelinePage = () => {
   const setSelectedDatasetIds = updatePipelineSelectedDatasetIds;
 
   const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const cloneDeep = <T,>(value: T): T => {
+    if (value === undefined) {
+      return value;
+    }
+    return JSON.parse(JSON.stringify(value)) as T;
+  };
+  const buildNodeMeta = (component: ReturnType<typeof findComponentById> | null): TreeNode['meta'] => {
+    if (!component) {
+      return undefined;
+    }
+    const defaults = cloneDeep(component.defaultParams ?? {});
+    let estimatorType: string | undefined;
+    if (defaults && typeof defaults === 'object' && 'estimator_type' in defaults) {
+      estimatorType = (defaults as Record<string, any>).estimator_type;
+      delete (defaults as Record<string, any>).estimator_type;
+    }
+
+    return {
+      classPath: component.classPath,
+      functionPath: component.functionPath,
+      defaultParams: defaults,
+      editableParams: component.editableParams ? cloneDeep(component.editableParams) : undefined,
+      categoryId: component.category.id,
+      subcategoryId: component.subcategory?.id,
+      estimatorType,
+      origin: 'library',
+    };
+  };
 
   // Load component library from JSON
   useEffect(() => {
@@ -101,12 +129,23 @@ const PipelinePage = () => {
 
   // Add component to canvas
   const addComponentToCanvas = (componentId: string) => {
-    const lib = findLibraryItemById(componentId) || {
-      id: componentId,
-      label: componentId,
-      category: 'preprocessing',
-      shortName: componentId,
-    };
+    const def = libraryData ? findComponentById(libraryData, componentId) : null;
+    const lib = def
+      ? {
+          id: def.id,
+          label: def.label,
+          category: def.category.id,
+          shortName: def.shortName,
+        }
+      : findLibraryItemById(componentId) || {
+          id: componentId,
+          label: componentId,
+          category: 'preprocessing',
+          shortName: componentId,
+        };
+
+    const paramsTemplate = def ? cloneDeep(def.defaultParams ?? {}) : {};
+    const meta = buildNodeMeta(def);
 
     const nodeType = isGeneratorNode(componentId)
       ? 'generation'
@@ -120,9 +159,10 @@ const PipelinePage = () => {
       componentId: lib.id,
       category: lib.category,
       shortName: lib.shortName,
-      params: {},
+      params: paramsTemplate,
       nodeType,
       children: [],
+      meta,
     };
 
     setNodes((prev) => [...prev, node]);
@@ -131,12 +171,23 @@ const PipelinePage = () => {
 
   // Add component as child of a specific container
   const addComponentToContainer = (parentId: string, componentId: string) => {
-    const lib = findLibraryItemById(componentId) || {
-      id: componentId,
-      label: componentId,
-      category: 'preprocessing',
-      shortName: componentId,
-    };
+    const def = libraryData ? findComponentById(libraryData, componentId) : null;
+    const lib = def
+      ? {
+          id: def.id,
+          label: def.label,
+          category: def.category.id,
+          shortName: def.shortName,
+        }
+      : findLibraryItemById(componentId) || {
+          id: componentId,
+          label: componentId,
+          category: 'preprocessing',
+          shortName: componentId,
+        };
+
+    const paramsTemplate = def ? cloneDeep(def.defaultParams ?? {}) : {};
+    const meta = buildNodeMeta(def);
 
     const nodeType = isGeneratorNode(componentId)
       ? 'generation'
@@ -150,12 +201,12 @@ const PipelinePage = () => {
       componentId: lib.id,
       category: lib.category,
       shortName: lib.shortName,
-      params: {},
+      params: paramsTemplate,
       nodeType,
       children: [],
+      meta,
     };
 
-    // Add the node as a child of the specified parent
     setNodes((prev) =>
       setTreeItemProperties(prev, parentId, (parent) => ({
         ...parent,
@@ -232,31 +283,51 @@ const PipelinePage = () => {
       const filePath = await saveFileDialog(defaultFilename, ['JSON files (*.json)']);
       console.log('[PipelinePage] saveFileDialog returned:', filePath);
 
-      if (filePath) {
-        const pipelineJson = exportNirs4allPipeline(nodes);
-        console.log('[PipelinePage] Pipeline JSON length:', pipelineJson.length);
-
-        // If we have pywebview and got a string path, write directly to file
-        if (isPywebviewAvailable() && typeof filePath === 'string') {
-          console.log('[PipelinePage] Using writeLocalFile to:', filePath);
-          await writeLocalFile(filePath, pipelineJson);
-          alert(`Pipeline saved successfully to:\n${filePath}`);
-        } else {
-          console.log('[PipelinePage] Using browser download fallback');
-          // Fallback to browser download
-          const blob = new Blob([pipelineJson], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = typeof filePath === 'string' ? filePath.split(/[\\/]/).pop() || defaultFilename : defaultFilename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-        }
-      } else {
-        console.log('[PipelinePage] No file path selected (user cancelled)');
+      if (!libraryData) {
+        alert('Component library is still loading. Please try again once it finishes.');
+        return;
       }
+
+      const rawFileName = typeof filePath === 'string' && filePath.length > 0
+        ? filePath.split(/[\\/]/).pop() || defaultFilename
+        : defaultFilename;
+      const derivedName = rawFileName.replace(/\.json$/i, '');
+
+      const pipelineNameInput = window.prompt('Pipeline name', derivedName || 'pipeline');
+      if (!pipelineNameInput) {
+        console.log('[PipelinePage] Save cancelled - no name provided');
+        return;
+      }
+      const pipelineName = pipelineNameInput.trim() || 'pipeline';
+      const pipelineDescription = window.prompt('Pipeline description', '') ?? '';
+
+      const pipelineJson = exportNirs4allPipeline(nodes, {
+        libraryData,
+        name: pipelineName,
+        description: pipelineDescription,
+      });
+      console.log('[PipelinePage] Pipeline JSON length:', pipelineJson.length);
+
+      const canUsePywebviewPath = isPywebviewAvailable() && typeof filePath === 'string' && filePath.length > 0;
+
+      if (canUsePywebviewPath) {
+        console.log('[PipelinePage] Using writeLocalFile to:', filePath);
+        await writeLocalFile(filePath, pipelineJson);
+        alert(`Pipeline saved successfully to:\n${filePath}`);
+        return;
+      }
+
+      console.log('[PipelinePage] Using browser download fallback');
+      const downloadName = rawFileName.endsWith('.json') ? rawFileName : `${rawFileName}.json`;
+      const blob = new Blob([pipelineJson], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = downloadName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('[PipelinePage] Error in savePipeline:', error);
       alert(`Failed to save pipeline: ${error instanceof Error ? error.message : String(error)}`);
@@ -269,7 +340,7 @@ const PipelinePage = () => {
       const stored = sessionStorage.getItem('pipeline_from_prediction');
       if (stored) {
         const parsed = JSON.parse(stored);
-        const nodesToLoad = loadNirs4allPipeline(parsed);
+        const nodesToLoad = loadNirs4allPipeline(parsed, libraryData);
         if (nodesToLoad.length > 0) setNodes(nodesToLoad);
         sessionStorage.removeItem('pipeline_from_prediction');
       }
@@ -285,7 +356,7 @@ const PipelinePage = () => {
           .loadPipelineFromPrediction(pid)
           .then((res: any) => {
             if (res && res.pipeline) {
-              const nodesToLoad = loadNirs4allPipeline(res.pipeline);
+              const nodesToLoad = loadNirs4allPipeline(res.pipeline, libraryData);
               if (nodesToLoad.length > 0) setNodes(nodesToLoad);
             }
           })
@@ -299,7 +370,7 @@ const PipelinePage = () => {
 
   // Handle load saved pipeline
   const handleLoadSavedPipeline = (p: any) => {
-    const nodesToLoad = loadNirs4allPipeline(p);
+    const nodesToLoad = loadNirs4allPipeline(p, libraryData);
     if (nodesToLoad.length > 0) setNodes(nodesToLoad);
     setShowLoadModal(false);
   };
@@ -330,7 +401,7 @@ const PipelinePage = () => {
     setProgress(2);
     try {
       // Convert to nirs4all format for backend
-      const pipeline = treeNodesToNirs4all(nodes);
+      const pipeline = treeNodesToNirs4all(nodes, libraryData);
       const cfg: any = { pipeline };
       const selected = Array.from(selectedDatasetIds || []);
       if (selected.length === 1) cfg.dataset_id = selected[0];
@@ -461,7 +532,7 @@ const PipelinePage = () => {
       )}
       {showPinModal && (
         <PinPipelineModal
-          pipeline={treeNodesToNirs4all(nodes)}
+          pipeline={treeNodesToNirs4all(nodes, libraryData)}
           onClose={() => setShowPinModal(false)}
           onPinned={() => setShowPinModal(false)}
         />

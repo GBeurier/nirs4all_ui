@@ -50,6 +50,13 @@ main_py = curr_dir / 'main.py'
 if main_py.exists():
     all_datas.append((str(main_py), '.'))
 
+# If the project provides a Windows ICO icon in the public folder, use it
+icon_file = curr_dir / 'public' / 'nirs4all.ico'
+if icon_file.exists():
+    exe_icon = str(icon_file)
+else:
+    exe_icon = None
+
 a = Analysis(
     ['launcher.py'],
     pathex=[],
@@ -107,7 +114,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Add icon path here if you have one
+    icon=exe_icon,  # Use public/nirs4all.ico if present
 )
 
 coll = COLLECT(

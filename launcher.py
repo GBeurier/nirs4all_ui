@@ -116,7 +116,7 @@ def start_backend_server():
         # Get the correct path for the backend module
         if is_packaged():
             # When packaged, the main.py is in _internal directory
-            base_path = Path(sys._MEIPASS)
+            base_path = Path(getattr(sys, '_MEIPASS', '.'))
         else:
             # When running from source, use current directory
             base_path = Path(__file__).parent
@@ -140,7 +140,7 @@ def start_backend_server():
         # Write error to log file in temp directory
         import tempfile
         log_file = Path(tempfile.gettempdir()) / "nirs4all_backend_error.log"
-        with open(log_file, "w") as f:
+        with open(log_file, "w", encoding="utf-8") as f:
             f.write(f"Backend startup error:\n{str(e)}\n")
             import traceback
             f.write(traceback.format_exc())
@@ -184,7 +184,7 @@ def main():
                     print("Check: C:\\Users\\grego\\AppData\\Local\\Temp\\nirs4all_backend_error.log")
                     print("Opening window anyway...")
                 else:
-                    print(f"Waiting... ({i+1}/{max_retries})")
+                    print(f"Waiting... ({i + 1}/{max_retries})")
                 continue
 
     print(f"Opening application window (backend_ready={backend_ready})...")
@@ -192,17 +192,59 @@ def main():
     url = get_url()
     api = Api()
 
-    # Create window and store reference
-    window = webview.create_window(
-        title='nirs4all - NIRS Analysis Desktop Application',
-        url=url,
-        width=1400,
-        height=900,
-        resizable=True,
-        fullscreen=False,
-        min_size=(1024, 768),
-        js_api=api
-    )
+    # Determine base path for resources depending on packaging
+    if is_packaged():
+        base_path = Path(sys._MEIPASS)
+    else:
+        base_path = Path(__file__).parent
+
+    # Prefer an ICO file for Windows application icon. Fall back to PNG or SVG if ICO missing.
+    icon_path = None
+    ico_candidate = base_path / 'public' / 'nirs4all.ico'
+    png_candidate = base_path / 'public' / 'nirs4all_logo.png'
+    svg_candidate = base_path / 'public' / 'nirs4all_icon.svg'
+
+    if ico_candidate.exists():
+        icon_path = str(ico_candidate)
+    elif png_candidate.exists():
+        icon_path = str(png_candidate)
+    elif svg_candidate.exists():
+        icon_path = str(svg_candidate)
+
+    if icon_path:
+        print(f"Using application icon: {icon_path}")
+    else:
+        print("No application icon found in public folder; continuing without explicit icon")
+
+    # Create window and store reference (pass icon path when available).
+    # Some pywebview versions/platforms don't accept the 'icon' kwarg, so pass
+    # it dynamically only when present to avoid unexpected keyword errors.
+    create_kwargs = {
+        'title': 'nirs4all - NIRS Analysis Desktop Application',
+        'url': url,
+        'width': 1400,
+        'height': 900,
+        'resizable': True,
+        'fullscreen': False,
+        'min_size': (1024, 768),
+        'js_api': api,
+    }
+    if icon_path:
+        try:
+            create_kwargs['icon'] = icon_path
+        except Exception:
+            # Defensive: some environments may not accept an icon path; ignore
+            pass
+
+    try:
+        window = webview.create_window(**create_kwargs)
+    except TypeError as exc:
+        if 'icon' in create_kwargs:
+            icon_value = create_kwargs.pop('icon', None)
+            print(f"create_window does not support 'icon' parameter ({exc}); retrying without icon.")
+            window = webview.create_window(**create_kwargs)
+        else:
+            raise
 
     print("Starting webview...")
     # Start the app with debug based on mode

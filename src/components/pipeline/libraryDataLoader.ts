@@ -35,6 +35,10 @@ export interface ComponentDefinition {
   defaultParams: Record<string, any>;
   editableParams: ParamDefinition[];
   generationMode: 'in-place' | 'out' | 'generator';
+  classPath?: string;
+  functionPath?: string;
+  framework?: string;
+  tags?: string[];
 }
 
 export interface ParamDefinition {
@@ -99,6 +103,8 @@ export function convertToLibraryGroups(library: ComponentLibraryJSON): LibraryGr
       featherIcon: category.featherIcon,
       description: category.description,
       className: category.className,
+      color: category.color,
+      bgColor: category.bgColor,
       subgroups: subcategories,
     };
   });
@@ -108,7 +114,7 @@ export function convertToLibraryGroups(library: ComponentLibraryJSON): LibraryGr
 export function findComponentById(
   library: ComponentLibraryJSON,
   id: string
-): (ComponentDefinition & { category: CategoryDefinition }) | null {
+): (ComponentDefinition & { category: CategoryDefinition; subcategory: SubcategoryDefinition }) | null {
   const component = library.components.find((c) => c.id === id);
   if (!component) return null;
 
@@ -121,6 +127,7 @@ export function findComponentById(
   return {
     ...component,
     category,
+    subcategory,
   };
 }
 
@@ -145,11 +152,28 @@ export function isChildAllowed(
   const parent = library.components.find((c) => c.id === parentId);
   if (!parent) return false;
 
+  const child = findComponentById(library, childId);
+  if (!child) return false;
+
   // If parent allows all children
   if (parent.allowedChildren.includes('*')) return true;
 
   // Check if child is in allowed list
-  return parent.allowedChildren.includes(childId);
+  for (const rule of parent.allowedChildren) {
+    if (rule === childId) return true;
+
+    if (rule.startsWith('category:')) {
+      const categoryId = rule.slice('category:'.length);
+      if (child.category.id === categoryId) return true;
+    }
+
+    if (rule.startsWith('subcategory:')) {
+      const subcategoryId = rule.slice('subcategory:'.length);
+      if (child.subcategory.id === subcategoryId) return true;
+    }
+  }
+
+  return false;
 }
 
 // Get category info for a component

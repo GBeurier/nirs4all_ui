@@ -10,7 +10,13 @@
  * - Special nodes: "chart_2d", "fold_chart", etc.
  */
 
-import type { TreeNode } from '../components/pipeline/PipelineCanvas';
+import type { TreeNode, NodeMetadata } from '../components/pipeline/PipelineCanvas';
+import type {
+  ComponentLibraryJSON,
+  ComponentDefinition,
+  CategoryDefinition,
+  SubcategoryDefinition,
+} from '../components/pipeline/libraryDataLoader';
 
 // Mapping from nirs4all class names to UI component IDs
 const CLASS_TO_COMPONENT_ID: Record<string, string> = {
@@ -77,19 +83,152 @@ const COMPONENT_ID_TO_CLASS: Record<string, string> = {
 // Special workflow nodes
 const WORKFLOW_NODES = new Set([
   'feature_augmentation',
-  'sample_augmentation',
+  'augmentation_sample',
+  'sequential',
+  'pipeline',
   'y_processing',
 ]);
 
 // Visualization nodes
 const VIZ_NODES = new Set([
   'chart_2d',
+  'chart_3d',
   'fold_chart',
+  'y_chart',
   'confusion_matrix',
 ]);
 
 // Generator keywords
 const GENERATOR_KEYWORDS = new Set(['_or_', '_range_']);
+
+interface ComponentMeta {
+  definition: ComponentDefinition;
+  category?: CategoryDefinition;
+  subcategory?: SubcategoryDefinition;
+}
+
+interface ComponentMaps {
+  byId: Map<string, ComponentMeta>;
+  byClassPath: Map<string, ComponentMeta>;
+  byFunctionPath: Map<string, ComponentMeta>;
+}
+
+function buildComponentMaps(library?: ComponentLibraryJSON | null): ComponentMaps {
+  const byId: Map<string, ComponentMeta> = new Map();
+  const byClassPath: Map<string, ComponentMeta> = new Map();
+  const byFunctionPath: Map<string, ComponentMeta> = new Map();
+
+  if (!library) {
+    return { byId, byClassPath, byFunctionPath };
+  }
+
+  const categoryMap = new Map(library.categories.map((category) => [category.id, category]));
+  const subcategoryMap = new Map(library.subcategories.map((subcategory) => [subcategory.id, subcategory]));
+
+  for (const definition of library.components) {
+    const subcategory = subcategoryMap.get(definition.subcategoryId);
+    const category = subcategory ? categoryMap.get(subcategory.categoryId) : undefined;
+    const meta: ComponentMeta = {
+      definition,
+      category,
+      subcategory,
+    };
+    byId.set(definition.id, meta);
+
+    if (definition.classPath && !byClassPath.has(definition.classPath)) {
+      byClassPath.set(definition.classPath, meta);
+    }
+    if (definition.functionPath && !byFunctionPath.has(definition.functionPath)) {
+      byFunctionPath.set(definition.functionPath, meta);
+    }
+  }
+
+  return { byId, byClassPath, byFunctionPath };
+}
+
+function cloneValue<T>(value: T): T {
+  return value === undefined ? value : JSON.parse(JSON.stringify(value)) as T;
+}
+
+type NodeMeta = NodeMetadata;
+
+function buildNodeMetaFromComponent(meta?: ComponentMeta): NodeMeta | undefined {
+  if (!meta) {
+    return undefined;
+  }
+  const defaults = meta.definition.defaultParams ?? {};
+  const editable = meta.definition.editableParams ?? [];
+  return {
+    classPath: meta.definition.classPath,
+    functionPath: meta.definition.functionPath,
+    defaultParams: cloneValue(defaults),
+    editableParams: cloneValue(editable),
+    categoryId: meta.category?.id,
+    subcategoryId: meta.subcategory?.id,
+  };
+}
+
+function mergeNodeMeta(base?: NodeMeta, override?: Partial<NodeMeta>): NodeMeta | undefined {
+  if (!base && !override) {
+    return undefined;
+  }
+  const result: NodeMeta = { ...(base ?? {}) };
+  if (override) {
+    if (override.classPath !== undefined) {
+      result.classPath = override.classPath;
+    }
+    if (override.functionPath !== undefined) {
+      result.functionPath = override.functionPath;
+    }
+    if (override.defaultParams !== undefined) {
+      result.defaultParams = cloneValue(override.defaultParams);
+    }
+    if (override.categoryId !== undefined) {
+      result.categoryId = override.categoryId;
+    }
+    if (override.subcategoryId !== undefined) {
+      result.subcategoryId = override.subcategoryId;
+    }
+    if (override.estimatorType !== undefined) {
+      result.estimatorType = override.estimatorType;
+    }
+    if (override.editableParams !== undefined) {
+      result.editableParams = cloneValue(override.editableParams);
+    }
+    if (override.origin !== undefined) {
+      result.origin = override.origin;
+    }
+  }
+  if (result.defaultParams) {
+    result.defaultParams = cloneValue(result.defaultParams);
+  }
+  if (result.editableParams) {
+    result.editableParams = cloneValue(result.editableParams);
+  }
+  return result;
+}
+
+function stripInternalParams(params?: Record<string, any>): Record<string, any> {
+  if (!params) return {};
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (key === '_raw' || value === undefined) continue;
+    result[key] = value;
+  }
+  return result;
+}
+
+function mergeParams(base: Record<string, any>, override: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    result[key] = value;
+  }
+  return result;
+}
+
+interface ConvertContext {
+  maps: ComponentMaps;
+}
 
 /**
  * Generate a unique ID for tree nodes
@@ -99,19 +238,20 @@ const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).sli
 /**
  * Convert nirs4all pipeline array to UI TreeNode array
  */
-export function nirs4allToTreeNodes(pipeline: any[]): TreeNode[] {
+export function nirs4allToTreeNodes(pipeline: any[], libraryData?: ComponentLibraryJSON | null): TreeNode[] {
   if (!Array.isArray(pipeline)) {
     console.warn('Pipeline is not an array:', pipeline);
     return [];
   }
 
-  return pipeline.map(step => convertStepToNode(step));
+  const context: ConvertContext = { maps: buildComponentMaps(libraryData) };
+  return pipeline.map(step => convertStepToNode(step, context));
 }
 
 /**
  * Convert a single pipeline step to a TreeNode
  */
-function convertStepToNode(step: any): TreeNode {
+function convertStepToNode(step: any, ctx: ConvertContext): TreeNode {
   // Handle null/undefined
   if (!step) {
     return createUnknownNode('null_step');
@@ -120,13 +260,51 @@ function convertStepToNode(step: any): TreeNode {
   // Handle string nodes (visualization or simple references)
   if (typeof step === 'string') {
     if (VIZ_NODES.has(step)) {
+      const vizMeta = ctx.maps.byId.get(step);
+      if (vizMeta) {
+        return createRegularNode(
+          vizMeta.definition.id,
+          vizMeta.definition.label ?? step,
+          {},
+          vizMeta
+        );
+      }
       return createVisualizationNode(step);
     }
-    // Try to map class name
+
+    const metaById = ctx.maps.byId.get(step);
+    if (metaById) {
+      return createRegularNode(
+        metaById.definition.id,
+        metaById.definition.label ?? step,
+        {},
+        metaById
+      );
+    }
+
+    const metaByClass = ctx.maps.byClassPath.get(step);
+    if (metaByClass) {
+      return createRegularNode(
+        metaByClass.definition.id,
+        metaByClass.definition.label ?? step,
+        {},
+        metaByClass,
+        { classPath: step }
+      );
+    }
+
     const componentId = CLASS_TO_COMPONENT_ID[step];
     if (componentId) {
-      return createRegularNode(componentId, step, {});
+      const fallbackMeta = ctx.maps.byId.get(componentId);
+      return createRegularNode(
+        componentId,
+        step,
+        {},
+        fallbackMeta,
+        { classPath: step }
+      );
     }
+
     return createUnknownNode(step);
   }
 
@@ -134,23 +312,28 @@ function convertStepToNode(step: any): TreeNode {
   if (typeof step === 'object') {
     // Check for generator nodes
     if (hasGeneratorKeys(step)) {
-      return convertGeneratorNode(step);
+      return convertGeneratorNode(step, ctx);
     }
 
     // Check for workflow/container nodes
     const workflowKey = Object.keys(step).find(k => WORKFLOW_NODES.has(k));
     if (workflowKey) {
-      return convertWorkflowNode(workflowKey, step[workflowKey]);
+      return convertWorkflowNode(workflowKey, step[workflowKey], ctx);
     }
 
     // Check for model node
     if ('model' in step) {
-      return convertModelNode(step);
+      return convertModelNode(step, ctx);
+    }
+
+    // Check for function specification
+    if ('function' in step) {
+      return convertFunctionNode(step, ctx);
     }
 
     // Check for class specification
     if ('class' in step) {
-      return convertClassNode(step);
+      return convertClassNode(step, ctx);
     }
 
     // Unknown object structure
@@ -171,7 +354,7 @@ function hasGeneratorKeys(obj: any): boolean {
 /**
  * Convert generator node (_or_ or _range_)
  */
-function convertGeneratorNode(step: any): TreeNode {
+function convertGeneratorNode(step: any, ctx: ConvertContext): TreeNode {
   if ('_or_' in step) {
     // OR generator
     const choices = step._or_;
@@ -179,14 +362,15 @@ function convertGeneratorNode(step: any): TreeNode {
     const count = step.count;
 
     const children = Array.isArray(choices)
-      ? choices.map(choice => convertStepToNode(choice))
+      ? choices.map(choice => convertStepToNode(choice, ctx))
       : [];
 
+    const meta = ctx.maps.byId.get('_or_');
     return {
       id: genId(),
-      label: 'OR Generator',
+      label: meta?.definition.label ?? 'OR Generator',
       componentId: '_or_',
-      category: 'special',
+      category: meta?.category?.id ?? 'utilities',
       shortName: '_OR_',
       params: {
         size: size || null,
@@ -194,6 +378,7 @@ function convertGeneratorNode(step: any): TreeNode {
       },
       nodeType: 'generation',
       children,
+      meta: mergeNodeMeta(buildNodeMetaFromComponent(meta), { origin: 'imported' }),
     };
   }
 
@@ -213,15 +398,16 @@ function convertGeneratorNode(step: any): TreeNode {
     // If model is specified, create model child
     const children: TreeNode[] = [];
     if (model) {
-      const modelNode = convertStepToNode({ model });
+      const modelNode = convertStepToNode({ model }, ctx);
       children.push(modelNode);
     }
 
+    const meta = ctx.maps.byId.get('_range_');
     return {
       id: genId(),
-      label: 'Range Generator',
+      label: meta?.definition.label ?? 'Range Generator',
       componentId: '_range_',
-      category: 'special',
+      category: meta?.category?.id ?? 'utilities',
       shortName: '_RANGE_',
       params: {
         range: rangeArray,
@@ -229,6 +415,7 @@ function convertGeneratorNode(step: any): TreeNode {
       },
       nodeType: 'generation',
       children,
+      meta: mergeNodeMeta(buildNodeMetaFromComponent(meta), { origin: 'imported' }),
     };
   }
 
@@ -238,88 +425,196 @@ function convertGeneratorNode(step: any): TreeNode {
 /**
  * Convert workflow/container node (feature_augmentation, etc.)
  */
-function convertWorkflowNode(key: string, value: any): TreeNode {
+function convertWorkflowNode(key: string, value: any, ctx: ConvertContext): TreeNode {
   const children: TreeNode[] = [];
 
   if (Array.isArray(value)) {
-    children.push(...value.map(child => convertStepToNode(child)));
+    children.push(...value.map(child => convertStepToNode(child, ctx)));
   } else if (typeof value === 'object' && value !== null) {
-    children.push(convertStepToNode(value));
+    children.push(convertStepToNode(value, ctx));
   }
+
+  const meta = ctx.maps.byId.get(key);
+  const paramsTemplate = meta ? cloneValue(meta.definition.defaultParams ?? {}) : {};
+  const mergedMeta = mergeNodeMeta(buildNodeMetaFromComponent(meta), { origin: 'imported' });
 
   return {
     id: genId(),
-    label: formatLabel(key),
+    label: meta?.definition.label ?? formatLabel(key),
     componentId: key,
-    category: 'special',
-    shortName: key,
-    params: {},
-    nodeType: 'container',
+    category: meta?.category?.id ?? 'special',
+    shortName: meta?.definition.shortName ?? key,
+    params: paramsTemplate,
+    nodeType: meta?.definition.nodeType ?? 'container',
     children,
+    meta: mergedMeta,
   };
 }
 
 /**
  * Convert model node
  */
-function convertModelNode(step: any): TreeNode {
+function convertModelNode(step: any, ctx: ConvertContext): TreeNode {
   const modelName = step.name || 'Unnamed Model';
   const modelSpec = step.model;
 
-  let componentId = 'unknown_model';
-  let className = '';
-  let params: any = {};
+  let classPath: string | undefined;
+  let functionPath: string | undefined;
+  let baseParams: Record<string, any> = {};
 
   if (typeof modelSpec === 'string') {
-    className = modelSpec;
-    componentId = CLASS_TO_COMPONENT_ID[modelSpec] || 'unknown_model';
-  } else if (typeof modelSpec === 'object' && modelSpec.class) {
-    className = modelSpec.class;
-    componentId = CLASS_TO_COMPONENT_ID[className] || 'unknown_model';
-    params = modelSpec.params || {};
+    classPath = modelSpec;
+  } else if (typeof modelSpec === 'object' && modelSpec !== null) {
+    if (typeof modelSpec.class === 'string') {
+      classPath = modelSpec.class;
+    }
+    if (typeof modelSpec.function === 'string') {
+      functionPath = modelSpec.function;
+    }
+    baseParams = modelSpec.params || {};
+  }
+
+  let componentMeta: ComponentMeta | undefined;
+  if (classPath) {
+    componentMeta = ctx.maps.byClassPath.get(classPath);
+  }
+  if (!componentMeta && functionPath) {
+    componentMeta = ctx.maps.byFunctionPath.get(functionPath);
+  }
+
+  let componentId = componentMeta?.definition.id ?? 'unknown_model';
+  if (!componentMeta && classPath) {
+    componentId = CLASS_TO_COMPONENT_ID[classPath] || classPath;
+  } else if (!componentMeta && functionPath) {
+    componentId = functionPath;
+  }
+
+  const nodeCategory = componentMeta?.category?.id ?? 'model_training';
+  const estimatorType = step.estimator_type ?? baseParams.estimator_type;
+
+  const nodeParams: Record<string, any> = {
+    ...baseParams,
+    model_name: modelName,
+    train_params: step.train_params || {},
+    finetune_params: step.finetune_params || {},
+  };
+
+  const meta = mergeNodeMeta(
+    buildNodeMetaFromComponent(componentMeta),
+    {
+      classPath,
+      functionPath,
+      defaultParams: cloneValue(baseParams),
+      estimatorType,
+      categoryId: nodeCategory,
+      origin: 'imported',
+    }
+  );
+
+  if (estimatorType !== undefined) {
+    nodeParams.estimator_type = estimatorType;
   }
 
   return {
     id: genId(),
     label: modelName,
-    componentId: componentId,
-    category: 'model_training',
+    componentId,
+    category: nodeCategory,
     shortName: modelName,
-    params: {
-      ...params,
-      model_name: modelName,
-      train_params: step.train_params || {},
-      finetune_params: step.finetune_params || {},
-    },
+    params: nodeParams,
     nodeType: 'regular',
     children: [],
+    meta,
   };
 }
 
 /**
  * Convert class node
  */
-function convertClassNode(step: any): TreeNode {
+function convertFunctionNode(step: any, ctx: ConvertContext): TreeNode {
+  const functionPath = step.function;
+  const params = step.params || {};
+  if (typeof functionPath !== 'string') {
+    return createUnknownNode('invalid_function', step);
+  }
+
+  const metaByFunction = ctx.maps.byFunctionPath.get(functionPath);
+  if (metaByFunction) {
+    return createRegularNode(
+      metaByFunction.definition.id,
+      metaByFunction.definition.label ?? functionPath,
+      params,
+      metaByFunction,
+      { functionPath, origin: 'imported' }
+    );
+  }
+
+  const fallbackId = functionPath.split('.').pop() ?? functionPath;
+  return createRegularNode(
+    fallbackId,
+    fallbackId,
+    params,
+    undefined,
+    { functionPath, origin: 'imported' }
+  );
+}
+
+/**
+ * Convert class node
+ */
+function convertClassNode(step: any, ctx: ConvertContext): TreeNode {
   const className = step.class;
   const params = step.params || {};
-  const componentId = CLASS_TO_COMPONENT_ID[className] || 'unknown_class';
+  if (typeof className !== 'string') {
+    return createUnknownNode('invalid_class', step);
+  }
 
-  return createRegularNode(componentId, className, params);
+  const metaByClass = ctx.maps.byClassPath.get(className);
+  if (metaByClass) {
+    return createRegularNode(
+      metaByClass.definition.id,
+      metaByClass.definition.label ?? className,
+      params,
+      metaByClass,
+      { classPath: className, origin: 'imported' }
+    );
+  }
+
+  const componentId = CLASS_TO_COMPONENT_ID[className] || className;
+
+  return createRegularNode(
+    componentId,
+    className,
+    params,
+    undefined,
+    { classPath: className, origin: 'imported' }
+  );
 }
 
 /**
  * Create a regular node
  */
-function createRegularNode(componentId: string, label: string, params: any): TreeNode {
+function createRegularNode(
+  componentId: string,
+  label: string,
+  params: any,
+  meta?: ComponentMeta,
+  overrideMeta?: Partial<NodeMeta>
+): TreeNode {
+  const resolvedMeta = mergeNodeMeta(buildNodeMetaFromComponent(meta), overrideMeta);
+  const categoryId = resolvedMeta?.categoryId ?? meta?.category?.id ?? getCategoryForComponent(componentId);
+  const shortName = meta?.definition.shortName ?? componentId;
+  const displayLabel = meta?.definition.label ?? formatLabel(label);
   return {
     id: genId(),
-    label: formatLabel(label),
+    label: displayLabel,
     componentId: componentId,
-    category: getCategoryForComponent(componentId),
-    shortName: componentId,
+    category: categoryId,
+    shortName,
     params: params || {},
     nodeType: 'regular',
     children: [],
+    meta: resolvedMeta,
   };
 }
 
@@ -358,18 +653,24 @@ function createUnknownNode(label: string, data?: any): TreeNode {
 /**
  * Convert UI TreeNode array to nirs4all pipeline format
  */
-export function treeNodesToNirs4all(nodes: TreeNode[]): any[] {
-  return nodes.map(node => convertNodeToStep(node));
+export function treeNodesToNirs4all(
+  nodes: TreeNode[],
+  libraryData?: ComponentLibraryJSON | null
+): any[] {
+  const context: ConvertContext = {
+    maps: buildComponentMaps(libraryData),
+  };
+  return nodes.map(node => convertNodeToStep(node, context));
 }
 
 /**
  * Convert a single TreeNode to pipeline step
  */
-function convertNodeToStep(node: TreeNode): any {
+function convertNodeToStep(node: TreeNode, ctx: ConvertContext): any {
   // Handle generator nodes
   if (node.componentId === '_or_') {
     const result: any = {
-      _or_: node.children?.map(child => convertNodeToStep(child)) || [],
+      _or_: node.children?.map(child => convertNodeToStep(child, ctx)) || [],
     };
     if (node.params?.size != null) result.size = node.params.size;
     if (node.params?.count != null) result.count = node.params.count;
@@ -382,40 +683,90 @@ function convertNodeToStep(node: TreeNode): any {
     };
     if (node.params?.param) result.param = node.params.param;
     if (node.children && node.children.length > 0) {
-      // Merge model from first child
-      const modelStep = convertNodeToStep(node.children[0]);
+      const modelStep = convertNodeToStep(node.children[0], ctx);
       Object.assign(result, modelStep);
     }
     return result;
   }
 
-  // Handle workflow/container nodes
   if (WORKFLOW_NODES.has(node.componentId)) {
-    const children = node.children?.map(child => convertNodeToStep(child)) || [];
+    const children = node.children?.map(child => convertNodeToStep(child, ctx)) || [];
     return {
       [node.componentId]: children.length === 1 ? children[0] : children,
     };
   }
 
-  // Handle visualization nodes
+  const meta = ctx.maps.byId.get(node.componentId);
+  const nodeMeta = node.meta;
+  const definition = meta?.definition;
+  const classPath = definition?.classPath ?? nodeMeta?.classPath;
+  const functionPath = definition?.functionPath ?? nodeMeta?.functionPath;
+  const defaultParamsSource = definition?.defaultParams ?? nodeMeta?.defaultParams ?? {};
+  const defaultParams = cloneValue(defaultParamsSource);
+  const categoryId = meta?.category?.id ?? nodeMeta?.categoryId ?? node.category ?? '';
+  const rawParams = stripInternalParams(node.params);
+  let remainingParams = rawParams;
+
   if (VIZ_NODES.has(node.componentId)) {
+    if (Object.keys(rawParams).length > 0) {
+      return {
+        id: node.componentId,
+        params: rawParams,
+      };
+    }
     return node.componentId;
   }
 
-  // Handle model nodes
-  if (node.params?.model_name || node.category === 'model_training') {
-    const className = COMPONENT_ID_TO_CLASS[node.componentId];
+  const isModelNode =
+    categoryId === 'models_sklearn' ||
+    categoryId === 'models_deep' ||
+    node.category === 'model_training' ||
+    (nodeMeta?.categoryId !== undefined && nodeMeta.categoryId.startsWith('models')) ||
+    nodeMeta?.estimatorType !== undefined ||
+    !!rawParams.model_name;
+
+  if (isModelNode) {
+    const {
+      model_name,
+      train_params,
+      finetune_params,
+      estimator_type: estimatorTypeOverride,
+      ...modelParamOverrides
+    } = rawParams;
+
+    remainingParams = modelParamOverrides;
+
+    const defaultsCopy = cloneValue(defaultParams);
+    let estimatorType = estimatorTypeOverride;
+    if (estimatorType === undefined && defaultsCopy && typeof defaultsCopy === 'object') {
+      estimatorType = (defaultsCopy as Record<string, any>).estimator_type ?? nodeMeta?.estimatorType;
+      if (estimatorType !== undefined) {
+        delete (defaultsCopy as Record<string, any>).estimator_type;
+      }
+    } else if (estimatorType === undefined && nodeMeta?.estimatorType !== undefined) {
+      estimatorType = nodeMeta.estimatorType;
+    }
+
+    const mergedModelParams = mergeParams(
+      (defaultsCopy as Record<string, any>) ?? {},
+      modelParamOverrides
+    );
+
     const result: any = {
-      name: node.params?.model_name || node.label,
-      model: {
-        class: className || node.componentId,
-      },
+      name: model_name || node.label,
+      model: {},
     };
 
-    // Extract model params (exclude special keys)
-    const { model_name, train_params, finetune_params, _raw, ...modelParams } = node.params || {};
-    if (Object.keys(modelParams).length > 0) {
-      result.model.params = modelParams;
+    if (classPath) {
+      result.model.class = classPath;
+    } else if (functionPath) {
+      result.model.function = functionPath;
+    } else {
+      result.model.class = COMPONENT_ID_TO_CLASS[node.componentId] || node.componentId;
+    }
+
+    if (Object.keys(mergedModelParams).length > 0) {
+      result.model.params = mergedModelParams;
     }
 
     if (train_params && Object.keys(train_params).length > 0) {
@@ -424,31 +775,45 @@ function convertNodeToStep(node: TreeNode): any {
     if (finetune_params && Object.keys(finetune_params).length > 0) {
       result.finetune_params = finetune_params;
     }
+    if (estimatorType !== undefined) {
+      result.estimator_type = estimatorType;
+    }
 
     return result;
   }
 
-  // Handle regular class nodes
-  const className = COMPONENT_ID_TO_CLASS[node.componentId];
-  if (className) {
-    const { _raw, ...params } = node.params || {};
-    if (Object.keys(params).length > 0) {
-      return {
-        class: className,
-        params: params,
-      };
+  if (classPath || functionPath) {
+    const mergedParams = mergeParams(defaultParams, remainingParams);
+    const step: any = classPath
+      ? { class: classPath }
+      : { function: functionPath };
+    if (Object.keys(mergedParams).length > 0) {
+      step.params = mergedParams;
     }
-    return {
-      class: className,
-    };
+    return step;
   }
 
-  // Fallback: return raw data if available
+  const fallbackClass = COMPONENT_ID_TO_CLASS[node.componentId];
+  if (fallbackClass) {
+    const mergedParams = mergeParams({}, remainingParams);
+    const step: any = { class: fallbackClass };
+    if (Object.keys(mergedParams).length > 0) {
+      step.params = mergedParams;
+    }
+    return step;
+  }
+
   if (node.params?._raw) {
     return node.params._raw;
   }
 
-  // Last resort: just the component ID
+  if (Object.keys(remainingParams).length > 0) {
+    return {
+      id: node.componentId,
+      params: remainingParams,
+    };
+  }
+
   return node.componentId;
 }
 
@@ -500,25 +865,25 @@ export function validateNirs4allPipeline(pipeline: any): { valid: boolean; error
 /**
  * Load pipeline from JSON string or object
  */
-export function loadNirs4allPipeline(data: string | any): TreeNode[] {
+export function loadNirs4allPipeline(data: string | any, libraryData?: ComponentLibraryJSON | null): TreeNode[] {
   try {
     const pipeline = typeof data === 'string' ? JSON.parse(data) : data;
 
     // Handle different top-level structures
     if (Array.isArray(pipeline)) {
-      return nirs4allToTreeNodes(pipeline);
+      return nirs4allToTreeNodes(pipeline, libraryData);
     }
 
     if (pipeline.pipeline) {
-      return nirs4allToTreeNodes(pipeline.pipeline);
+      return nirs4allToTreeNodes(pipeline.pipeline, libraryData);
     }
 
     if (pipeline.steps) {
-      return nirs4allToTreeNodes(pipeline.steps);
+      return nirs4allToTreeNodes(pipeline.steps, libraryData);
     }
 
     if (pipeline.nodes) {
-      return nirs4allToTreeNodes(pipeline.nodes);
+      return nirs4allToTreeNodes(pipeline.nodes, libraryData);
     }
 
     return [];
@@ -531,7 +896,25 @@ export function loadNirs4allPipeline(data: string | any): TreeNode[] {
 /**
  * Export pipeline to nirs4all JSON format
  */
-export function exportNirs4allPipeline(nodes: TreeNode[]): string {
-  const pipeline = treeNodesToNirs4all(nodes);
-  return JSON.stringify(pipeline, null, 2);
+interface ExportOptions {
+  libraryData?: ComponentLibraryJSON | null;
+  name?: string;
+  description?: string;
+  createdAt?: string;
 }
+
+export function exportNirs4allPipeline(
+  nodes: TreeNode[],
+  options: ExportOptions = {}
+): string {
+  const steps = treeNodesToNirs4all(nodes, options.libraryData);
+  const document = {
+    name: options.name ?? "pipeline",
+    description: options.description ?? "",
+    created_at: options.createdAt ?? new Date().toISOString(),
+    steps,
+  };
+  return JSON.stringify(document, null, 2);
+}
+
+

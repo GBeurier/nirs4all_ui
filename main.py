@@ -72,13 +72,25 @@ if public_path.exists():
             return FileResponse(str(lib_file))
         raise HTTPException(status_code=404, detail="Component library not found")
 
-    @app.get("/nirs4all_icon.svg")
+    @app.get("/nirs4all.svg")
     async def serve_vite_svg():
         """Serve vite svg from public folder"""
-        svg_file = public_path / "nirs4all_icon.svg"
+        svg_file = public_path / "nirs4all.svg"
         if svg_file.exists():
             return FileResponse(str(svg_file))
         raise HTTPException(status_code=404, detail="Vite SVG not found")
+
+    @app.get("/nirs4all.ico")
+    async def serve_favicon_ico():
+        """Serve .ico favicon from public folder (fallback for some platforms)"""
+        ico_file = public_path / "nirs4all.ico"
+        if ico_file.exists():
+            return FileResponse(str(ico_file))
+        # If no .ico is present, try to serve a PNG fallback
+        png_file = public_path / "nirs4all_logo.png"
+        if png_file.exists():
+            return FileResponse(str(png_file))
+        raise HTTPException(status_code=404, detail="Favicon not found")
 
     @app.get("/")
     async def serve_spa():
