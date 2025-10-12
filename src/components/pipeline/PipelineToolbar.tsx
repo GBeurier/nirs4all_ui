@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Trash2, Play, Database, Folder, MapPin, Save } from 'feather-icons-react';
+import { Trash2, Play, Database, Folder, MapPin, Save, Target } from 'feather-icons-react';
 import type { Dataset } from '../../types';
 
 interface PipelineToolbarProps {
@@ -13,6 +13,7 @@ interface PipelineToolbarProps {
   groupsList: any[];
   selectedDatasetIds: Set<string>;
   onDatasetSelectionChange: (ids: Set<string>) => void;
+  onPredict: () => void;
 }
 
 const PipelineToolbar: React.FC<PipelineToolbarProps> = ({
@@ -26,6 +27,7 @@ const PipelineToolbar: React.FC<PipelineToolbarProps> = ({
   groupsList,
   selectedDatasetIds,
   onDatasetSelectionChange,
+  onPredict,
 }) => {
   const [datasetDropdownOpen, setDatasetDropdownOpen] = useState(false);
   const datasetDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -53,6 +55,19 @@ const PipelineToolbar: React.FC<PipelineToolbarProps> = ({
           disabled={running}
         >
           <Play className="w-5 h-5" />
+        </button>
+        {/* Predict: launch pipeline in predict (inference) mode */}
+        <button
+          type="button"
+          onClick={onPredict}
+          className={`inline-flex items-center px-3 py-2 rounded-lg text-white transition-colors ${
+            running ? 'bg-indigo-400 opacity-70 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
+          }`}
+          title="Launch pipeline in predict mode"
+          aria-label="Launch predict"
+          disabled={running}
+        >
+          <Target className="w-5 h-5" />
         </button>
       </div>
 

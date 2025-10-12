@@ -288,6 +288,15 @@ class WorkspaceManager:
                 except Exception:
                     return 0, 0
 
+            # Collect all candidate X paths (supports multiple sources)
+            x_candidates = []
+            for k in ('train_x', 'test_x'):
+                v = parsed_config.get(k)
+                if isinstance(v, list):
+                    x_candidates.extend(v)
+                elif isinstance(v, str) and v:
+                    x_candidates.append(v)
+
             x_path = _first_x_path(parsed_config)
             y_path = _first_y_path(parsed_config)
             num_samples = 0
@@ -318,6 +327,33 @@ class WorkspaceManager:
                     # ignore and continue with zeros
                     print(f"Warning: failed to inspect Y file: {e}")
 
+            # If multiple X sources were found, inspect each to get per-source feature counts
+            num_features_per_source = None
+            if x_candidates:
+                try:
+                    fps = []
+                    samples_from_first = None
+                    for xp in x_candidates:
+                        xp_obj = Path(str(xp))
+                        if not xp_obj.is_absolute():
+                            xp_obj = (Path(dataset_path) / xp_obj).resolve()
+                        s, f = _inspect_data_file(str(xp_obj))
+                        fps.append(f)
+                        if samples_from_first is None and s:
+                            samples_from_first = s
+                    if fps:
+                        num_features_per_source = fps
+                        # default num_features mirrors loader behavior: concat if specified
+                        x_mode = parsed_config.get('x_source_mode', 'stack')
+                        if x_mode == 'concat':
+                            num_features = sum(fps)
+                        else:
+                            num_features = fps[0] if len(fps) > 0 else num_features
+                        if samples_from_first:
+                            num_samples = samples_from_first
+                except Exception:
+                    num_features_per_source = None
+
             dataset_info = {
                 "id": f"dataset_{len(self._workspace_config.datasets) + 1}",
                 "name": dataset_name,
@@ -327,8 +363,10 @@ class WorkspaceManager:
                 "num_features": num_features,
                 "num_targets": num_targets,
                 "task_type": parsed_config.get('task_type', 'unknown'),
-                "sources": 1
+                "sources": len(x_candidates) if x_candidates else 1
             }
+            if num_features_per_source is not None:
+                dataset_info['num_features_per_source'] = num_features_per_source
 
             # Check if already linked
             for existing in self._workspace_config.datasets:
@@ -370,16 +408,11 @@ class WorkspaceManager:
             raise RuntimeError("No workspace selected")
 
         # Find dataset
-        dataset_info = None
-        for d in self._workspace_config.datasets:
-            if d["id"] == dataset_id:
-                dataset_info = d
-                break
-
+        dataset_info = next((d for d in self._workspace_config.datasets if d.get("id") == dataset_id), None)
         if not dataset_info:
             return None
 
-        # Reload dataset info
+        # Reload dataset info using nirs4all DatasetConfigs
         try:
             if DatasetConfigs is None:
                 raise ValueError("nirs4all library not available")
@@ -390,15 +423,30 @@ class WorkspaceManager:
             if datasets:
                 dataset = datasets[0]
 
-                # Update info
-                dataset_info.update({
+                # Prepare num_features_per_source when dataset.num_features is a sequence
+                nf = getattr(dataset, 'num_features', 0)
+                nf_per_source = None
+                try:
+                    if isinstance(nf, (list, tuple)):
+                        nf_per_source = list(nf)
+                    elif hasattr(nf, 'tolist'):
+                        nf_converted = nf.tolist()
+                        if isinstance(nf_converted, (list, tuple)):
+                            nf_per_source = list(nf_converted)
+                except Exception:
+                    nf_per_source = None
+
+                update_payload = {
                     "num_samples": getattr(dataset, 'num_samples', 0),
                     "num_features": getattr(dataset, 'num_features', 0),
                     "task_type": getattr(dataset, 'task_type', 'unknown'),
                     "sources": getattr(dataset, 'features_sources', lambda: 1)() if hasattr(dataset, 'features_sources') else 1,
                     "last_refreshed": datetime.now().isoformat()
-                })
+                }
+                if nf_per_source is not None:
+                    update_payload['num_features_per_source'] = nf_per_source
 
+                dataset_info.update(update_payload)
                 self._save_workspace_config()
                 return dataset_info
 
@@ -561,14 +609,20 @@ class WorkspaceManager:
                     x_train, y_train, headers = loader_mod.handle_data(full_config, 'train')
 
                     # Calculate dimensions
+                    features_per_source = None
                     if isinstance(x_train, list):
                         # Multiple sources
                         num_sources = len(x_train)
                         if len(x_train) > 0:
                             num_samples = x_train[0].shape[0] if len(x_train[0].shape) > 0 else 0
+                            # Compute per-source feature counts
+                            try:
+                                features_per_source = [x.shape[1] if len(x.shape) > 1 else 0 for x in x_train]
+                            except Exception:
+                                features_per_source = None
                             if full_config.get('x_source_mode') == 'concat':
                                 # Concatenated: sum features across sources
-                                num_features = sum(x.shape[1] if len(x.shape) > 1 else 0 for x in x_train)
+                                num_features = sum((f or 0) for f in (features_per_source or []))
                             else:
                                 # Stacked: features from first source
                                 num_features = x_train[0].shape[1] if len(x_train[0].shape) > 1 else 0
@@ -587,16 +641,20 @@ class WorkspaceManager:
                     print(f"Warning: Failed to load dataset for dimension extraction: {e}")
                     # Continue with zeros
 
-            # Update dataset info
-            dataset_info.update({
-                'config': config,
-                'files': files,
-                'num_samples': num_samples,
-                'num_features': num_features,
-                'num_targets': num_targets,
-                'num_sources': num_sources,
-                'last_loaded': datetime.now().isoformat()
-            })
+                    # Update dataset info (include per-source counts when available)
+                    update_payload = {
+                        'config': config,
+                        'files': files,
+                        'num_samples': num_samples,
+                        'num_features': num_features,
+                        'num_targets': num_targets,
+                        'num_sources': num_sources,
+                        'last_loaded': datetime.now().isoformat()
+                    }
+                    if features_per_source is not None:
+                        update_payload['num_features_per_source'] = features_per_source
+
+                    dataset_info.update(update_payload)
 
             self._workspace_config.datasets[dataset_index] = dataset_info
             self._save_workspace_config()

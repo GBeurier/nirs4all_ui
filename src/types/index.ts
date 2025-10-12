@@ -16,7 +16,8 @@ export interface Dataset {
   files?: DatasetFile[];  // Individual file configurations
   groups?: string[];
   num_samples?: number;
-  num_features?: number;
+  num_features?: number | number[];
+  num_features_per_source?: number[];
   num_targets?: number;
   num_sources?: number;
   last_loaded?: string;

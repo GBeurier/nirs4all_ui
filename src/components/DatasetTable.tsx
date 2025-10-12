@@ -22,6 +22,19 @@ const DatasetTable = ({
 }: DatasetTableProps) => {
   const navigate = useNavigate();
 
+  const formatNumFeatures = (d: Dataset): string => {
+    const nfAny: any = (d as any).num_features_per_source ?? (d as any).num_features;
+    if (Array.isArray(nfAny)) return nfAny.join(' | ');
+    if (typeof nfAny === 'number') return String(nfAny);
+    if (typeof nfAny === 'string') {
+      if ((nfAny as string).includes(',')) return (nfAny as string).split(',').map((s) => s.trim()).join(' | ');
+      if ((nfAny as string).includes(';')) return (nfAny as string).split(';').map((s) => s.trim()).join(' | ');
+      if (d.num_sources && d.num_sources > 1 && /\d+\s+\d+/.test(nfAny)) return (nfAny as string).split(/\s+/).join(' | ');
+      return nfAny as string;
+    }
+    return 'N/A';
+  };
+
   const getGroupsForDataset = (datasetId: string): Group[] => {
     return groups.filter((group) => (group as any).dataset_ids?.includes(datasetId));
   };
@@ -37,8 +50,7 @@ const DatasetTable = ({
   };
 
   const handleViewDataset = (dataset: Dataset) => {
-    // TODO: Implement dataset detail view
-    alert(`View dataset: ${dataset.name}\nPath: ${dataset.path}\nSamples: ${dataset.num_samples || 'N/A'}\nFeatures: ${dataset.num_features || 'N/A'}`);
+    alert(`View dataset: ${dataset.name}\nPath: ${dataset.path}\nSamples: ${dataset.num_samples || 'N/A'}\nFeatures: ${formatNumFeatures(dataset)}`);
   };
 
   const handleGoToPredictions = (datasetId: string) => {
@@ -104,10 +116,9 @@ const DatasetTable = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {dataset.num_samples && dataset.num_features ? (
+                    {dataset.num_samples && (dataset.num_features || (dataset as any).num_features_per_source) ? (
                       <span className="font-mono">
-                        {dataset.num_samples} / {dataset.num_features}
-                        {dataset.num_targets !== undefined && dataset.num_targets !== null ? ` / ${dataset.num_targets}` : ''}
+                        {dataset.num_samples} / {formatNumFeatures(dataset)}{dataset.num_targets !== undefined && dataset.num_targets !== null ? ` / ${dataset.num_targets}` : ''}
                       </span>
                     ) : (
                       <span className="text-gray-400">N/A</span>

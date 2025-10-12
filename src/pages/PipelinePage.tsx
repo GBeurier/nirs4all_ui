@@ -98,9 +98,12 @@ const PipelinePage = () => {
       const library = await loadComponentLibrary();
       setLibraryData(library);
       const groups = convertToLibraryGroups(library);
-      setLibraryGroups(groups);
-      // Start with all groups collapsed
-      setCollapsedGroups(new Set(groups.map(g => g.id)));
+  setLibraryGroups(groups);
+  // Start with all groups collapsed
+  setCollapsedGroups(new Set(groups.map((g) => g.id)));
+  // Also collapse all subgroups (subcategories) by default so the component menu
+  // shows only top-level groups initially
+  setCollapsedSubgroups(new Set(groups.flatMap((g) => g.subgroups.map((s) => s.id))));
     })();
   }, []);
 
@@ -452,6 +455,38 @@ const PipelinePage = () => {
     console.debug('Pipeline progress:', progress);
   }, [progress]);
 
+  // Launch pipeline in predict mode (use pretrained models / inference)
+  const handlePredictPipeline = async () => {
+    if (running) return;
+    setRunning(true);
+    setProgress(2);
+    try {
+      const pipeline = treeNodesToNirs4all(nodes, libraryData);
+      const cfg: any = { pipeline, mode: 'predict' };
+      const selected = Array.from(selectedDatasetIds || []);
+      if (selected.length === 1) cfg.dataset_id = selected[0];
+      else if (selected.length > 1) cfg.dataset_ids = selected;
+
+      if (apiClient.runPrediction) {
+        await apiClient.runPrediction(cfg);
+        setProgress(100);
+      } else {
+        for (let p = 5; p <= 95; p += 10) {
+          await new Promise((res) => setTimeout(res, 250));
+          setProgress(p);
+        }
+        setProgress(100);
+      }
+    } catch (e) {
+      console.error('Predict failed', e);
+      setProgress(0);
+      alert('Pipeline predict failed');
+    } finally {
+      setRunning(false);
+      setTimeout(() => setProgress(0), 800);
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
@@ -482,6 +517,7 @@ const PipelinePage = () => {
               <PipelineToolbar
                 onClear={handleClear}
                 onRun={handleRunPipeline}
+                onPredict={handlePredictPipeline}
                 onLoad={() => setShowLoadModal(true)}
                 onPin={() => setShowPinModal(true)}
                 onSave={savePipeline}
