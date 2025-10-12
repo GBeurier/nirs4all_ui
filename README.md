@@ -133,6 +133,12 @@ nirs4all_ui/
 
 ## Features
 
+### State Persistence
+- **Pipeline state preserved across navigation** - your pipeline remains intact when switching pages
+- Navigate between Workspace, Pipeline, Predictions without losing work
+- Pipeline nodes, selections, and dataset choices are maintained
+- Only cleared when explicitly using "Clear Pipeline" button
+
 ### Pipeline Editor
 - Visual pipeline builder with drag-and-drop
 - **Full nirs4all format support** - load/save pipelines in nirs4all JSON format

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAppState } from '../context/AppStateContext';
 import type { Dataset } from '../types';
 import type { TreeItems } from '@clevertask/react-sortable-tree';
 import LoadPipelineModal from '../components/LoadPipelineModal';
@@ -28,20 +29,38 @@ import {
 
 
 const PipelinePage = () => {
-  const [nodes, setNodes] = useState<TreeItems<TreeNode>>([]);
+  // Use global state for pipeline nodes and selection
+  const { state, updatePipelineNodes, updatePipelineSelectedNodeId, updatePipelineSelectedDatasetIds, clearPipelineState } = useAppState();
+
+  // Local state for UI-specific things
   const [libraryData, setLibraryData] = useState<ComponentLibraryJSON | null>(null);
   const [libraryGroups, setLibraryGroups] = useState<LibraryGroup[]>([]);
   // Start with all groups collapsed
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [datasetsList, setDatasetsList] = useState<Dataset[]>([]);
-  const [selectedDatasetIds, setSelectedDatasetIds] = useState<Set<string>>(new Set());
   const [groupsList, setGroupsList] = useState<any[]>([]);
   const [progress, setProgress] = useState<number>(0);
   const [running, setRunning] = useState(false);
+
+  // Use global state values
+  const nodes = state.pipelineNodes;
+  const selectedNodeId = state.pipelineSelectedNodeId;
+  const selectedDatasetIds = state.pipelineSelectedDatasetIds;
+
+  // Use global state setters
+  const setNodes = (nodes: TreeItems<TreeNode> | ((prev: TreeItems<TreeNode>) => TreeItems<TreeNode>)) => {
+    if (typeof nodes === 'function') {
+      updatePipelineNodes(nodes(state.pipelineNodes));
+    } else {
+      updatePipelineNodes(nodes);
+    }
+  };
+
+  const setSelectedNodeId = updatePipelineSelectedNodeId;
+  const setSelectedDatasetIds = updatePipelineSelectedDatasetIds;
 
   const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -353,9 +372,8 @@ const PipelinePage = () => {
 
   // Clear pipeline
   const handleClear = () => {
-    setNodes([]);
+    clearPipelineState();
     setProgress(0);
-    setSelectedNodeId(null);
   };
 
   // Keep linter happy
