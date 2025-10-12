@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Folder } from 'feather-icons-react';
-import { selectFolder } from '../utils/fileDialogs';
+import { selectFolder, isPywebviewAvailable } from '../utils/fileDialogs';
 
 interface DatasetConfig {
   path: string;
@@ -35,8 +35,7 @@ const AddDatasetModal = ({ onClose, onAdd }: AddDatasetModalProps) => {
   });
   const [loading, setLoading] = useState(false);
   const [autoDetected, setAutoDetected] = useState(false);
-
-  const isDesktop = typeof window !== 'undefined' && !!(window as any).pywebview?.api;
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
 
   // Auto-detect configuration when path changes (for folders)
   useEffect(() => {
@@ -66,15 +65,21 @@ const AddDatasetModal = ({ onClose, onAdd }: AddDatasetModalProps) => {
   };
 
   const handleSelectFolder = async () => {
-    try {
-      const folderPath = await selectFolder();
-      if (folderPath && typeof folderPath === 'string') {
-        setDatasetPath(folderPath);
-        setConfig(prev => ({ ...prev, path: folderPath }));
+    // Try pywebview first (desktop app)
+    if (isPywebviewAvailable()) {
+      try {
+        const folderPath = await selectFolder();
+        if (folderPath && typeof folderPath === 'string') {
+          setDatasetPath(folderPath);
+          setConfig(prev => ({ ...prev, path: folderPath }));
+        }
+      } catch (error) {
+        console.error('Failed to select folder:', error);
+        alert('Failed to select folder');
       }
-    } catch (error) {
-      console.error('Failed to select folder:', error);
-      alert('Failed to select folder');
+    } else {
+      // Fallback to HTML input (browser/dev mode)
+      folderInputRef.current?.click();
     }
   };
 
@@ -129,6 +134,27 @@ const AddDatasetModal = ({ onClose, onAdd }: AddDatasetModalProps) => {
         </div>
 
         <div className="p-6 space-y-4">
+          {/* Hidden file input for browser fallback */}
+          <input
+            ref={folderInputRef}
+            type="file"
+            {...({ webkitdirectory: '', directory: '' } as any)}
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              // In browser mode, we can't get absolute paths, but we can show a message
+              const files = e.target.files;
+              if (files && files.length > 0) {
+                // Try to extract a common path (won't be absolute, but can show folder name)
+                const firstFile = files[0];
+                const path = (firstFile as any).webkitRelativePath || firstFile.name;
+                const folderName = path.split('/')[0];
+                alert(`Browser mode limitation: Cannot get absolute path.\n\nSelected folder: ${folderName}\n\nPlease use the desktop app for full functionality, or paste the absolute path manually.`);
+              }
+              e.currentTarget.value = '';
+            }}
+          />
+
           {/* Path selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -139,24 +165,22 @@ const AddDatasetModal = ({ onClose, onAdd }: AddDatasetModalProps) => {
                 type="text"
                 value={datasetPath}
                 onChange={(e) => setDatasetPath(e.target.value)}
-                placeholder={isDesktop ? "Click Browse to select..." : "Paste absolute path here..."}
+                placeholder="Click Browse or paste absolute path..."
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
               />
-              {isDesktop && (
-                <button
-                  onClick={handleSelectFolder}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Folder className="h-4 w-4 mr-2" />
-                  Browse
-                </button>
-              )}
+              <button
+                onClick={handleSelectFolder}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <Folder className="h-4 w-4 mr-2" />
+                Browse
+              </button>
             </div>
-            {!isDesktop && (
-              <p className="mt-1 text-sm text-gray-500">
-                Desktop app required for folder browser. Paste the absolute path manually.
-              </p>
-            )}
+            <p className="mt-1 text-sm text-gray-500">
+              {isPywebviewAvailable()
+                ? "Click Browse to select a folder with native dialog"
+                : "Browse opens limited browser picker. For full functionality, use desktop app or paste absolute path"}
+            </p>
           </div>
 
           {/* Folder vs File toggle */}

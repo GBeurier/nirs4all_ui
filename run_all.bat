@@ -74,23 +74,48 @@ echo Starting in PROD mode...
 REM Build frontend
 echo Building frontend (this may take a while)...
 call npm run build
-
-REM Start backend using uvicorn (no reload)
-if exist .venv\Scripts\python.exe (
-  start "nirs4all-backend" cmd /k "set TF_CPP_MIN_LOG_LEVEL=2 && set TF_ENABLE_ONEDNN_OPTS=0 && .venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000"
-) else (
-  start "nirs4all-backend" cmd /k "set TF_CPP_MIN_LOG_LEVEL=2 && set TF_ENABLE_ONEDNN_OPTS=0 && python -m uvicorn main:app --host 127.0.0.1 --port 8000"
+if errorlevel 1 (
+  echo ERROR: Build failed!
+  pause
+  exit /b 1
 )
 
-REM Give backend a moment
-timeout /t 2 /nobreak >nul
+echo Build successful!
+echo.
 
-REM Launch the desktop app (will open local dist/index.html)
+REM Start backend using uvicorn (in visible console for nirs4all output)
+echo Starting backend server (keep this window open for logs)...
+echo.
 if exist .venv\Scripts\python.exe (
-  start "nirs4all-desktop" cmd /k ".venv\Scripts\python.exe launcher.py"
+  start "nirs4all Backend - Keep Open for Logs" cmd /k "set TF_CPP_MIN_LOG_LEVEL=2 && set TF_ENABLE_ONEDNN_OPTS=0 && echo ======================================== && echo nirs4all Backend Server && echo ======================================== && echo. && echo Listening on http://127.0.0.1:8000 && echo API Docs: http://127.0.0.1:8000/docs && echo. && echo This window shows backend logs and nirs4all pipeline execution output. && echo Press Ctrl+C to stop the server. && echo. && echo ======================================== && echo. && .venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000 --log-level warning"
 ) else (
-  start "nirs4all-desktop" cmd /k "python launcher.py"
+  start "nirs4all Backend - Keep Open for Logs" cmd /k "set TF_CPP_MIN_LOG_LEVEL=2 && set TF_ENABLE_ONEDNN_OPTS=0 && echo ======================================== && echo nirs4all Backend Server && echo ======================================== && echo. && echo Listening on http://127.0.0.1:8000 && echo API Docs: http://127.0.0.1:8000/docs && echo. && echo This window shows backend logs and nirs4all pipeline execution output. && echo Press Ctrl+C to stop the server. && echo. && echo ======================================== && echo. && python -m uvicorn main:app --host 127.0.0.1 --port 8000 --log-level warning"
 )
+
+REM Give backend time to start
+echo Waiting for backend to initialize...
+timeout /t 3 /nobreak >nul
+
+REM Launch the desktop app (will open in windowed mode)
+echo Launching application window...
+if exist .venv\Scripts\python.exe (
+  start /B "" .venv\Scripts\pythonw.exe launcher.py
+) else (
+  start /B "" pythonw.exe launcher.py
+)
+
+echo.
+echo ========================================
+echo Production mode started!
+echo ========================================
+echo Backend: Running in separate console
+echo App:     Opening in desktop window
+echo.
+echo Keep the backend console open to see:
+echo - API logs
+echo - Pipeline execution output
+echo - nirs4all library messages
+echo ========================================
 goto :end
 
 :end

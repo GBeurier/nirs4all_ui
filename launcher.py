@@ -2,9 +2,11 @@
 Desktop launcher for nirs4all UI using pywebview
 """
 import webview
-import sys
 import os
-from pathlib import Path
+
+
+# Store window reference for API methods
+window = None
 
 
 class Api:
@@ -12,8 +14,12 @@ class Api:
 
     def select_folder(self):
         """Open native folder picker dialog"""
-        result = webview.windows[0].create_folder_dialog(
-            'Select Folder'
+        global window
+        if not window:
+            return None
+
+        result = window.create_file_dialog(
+            webview.FOLDER_DIALOG
         )
         if result and len(result) > 0:
             return result[0]
@@ -21,10 +27,14 @@ class Api:
 
     def select_file(self, file_types=None):
         """Open native file picker dialog"""
+        global window
+        if not window:
+            return None
+
         if file_types is None:
             file_types = ('JSON files (*.json)',)
 
-        result = webview.windows[0].create_file_dialog(
+        result = window.create_file_dialog(
             webview.OPEN_DIALOG,
             allow_multiple=False,
             file_types=file_types
@@ -35,10 +45,14 @@ class Api:
 
     def save_file(self, default_filename='file.json', file_types=None):
         """Open native save file dialog"""
+        global window
+        if not window:
+            return None
+
         if file_types is None:
             file_types = ('JSON files (*.json)',)
 
-        result = webview.windows[0].create_file_dialog(
+        result = window.create_file_dialog(
             webview.SAVE_DIALOG,
             save_filename=default_filename,
             file_types=file_types
@@ -54,30 +68,32 @@ def get_url():
     if os.environ.get('VITE_DEV', 'false').lower() == 'true':
         return 'http://localhost:5173'
 
-    # In production, serve from dist folder
-    dist_path = Path(__file__).parent / 'dist' / 'index.html'
-    return str(dist_path.absolute())
+    # In production, use the backend to serve static files
+    # The backend will serve from dist/ folder
+    return 'http://127.0.0.1:8000'
 
 
 def main():
     """Launch the desktop application"""
+    global window
+
     url = get_url()
     api = Api()
 
-    # Create window
+    # Create window and store reference
     window = webview.create_window(
-        title='nirs4all',
+        title='nirs4all - NIRS Analysis Desktop Application',
         url=url,
-        width=1280,
-        height=800,
+        width=1400,
+        height=900,
         resizable=True,
         fullscreen=False,
-        min_size=(800, 600),
+        min_size=(1024, 768),
         js_api=api
     )
 
-    # Start the app
-    webview.start(debug=os.environ.get('DEBUG', 'false').lower() == 'true')
+    # Start the app with debug enabled to see console logs
+    webview.start(debug=True)
 
 
 if __name__ == '__main__':

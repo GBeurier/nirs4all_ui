@@ -4,7 +4,7 @@ Pipelines API routes for nirs4all.
 This module provides FastAPI routes for pipeline operations.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from pathlib import Path
 import json
 
@@ -70,3 +70,47 @@ async def get_pipeline(pipeline_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get pipeline: {str(e)}")
+
+
+@router.post("/files/read")
+async def read_local_file(file_path: str = Body(..., embed=True)):
+    """Read contents of a local file (for pywebview desktop mode)."""
+    try:
+        path = Path(file_path)
+
+        # Security check: ensure file exists and is accessible
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if not path.is_file():
+            raise HTTPException(status_code=400, detail="Path is not a file")
+
+        # Read file content
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        return {"content": content, "path": str(path)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+
+
+@router.post("/files/write")
+async def write_local_file(file_path: str = Body(...), content: str = Body(...)):
+    """Write contents to a local file (for pywebview desktop mode)."""
+    try:
+        path = Path(file_path)
+
+        # Ensure parent directory exists
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write file content
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        return {"success": True, "path": str(path)}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write file: {str(e)}")

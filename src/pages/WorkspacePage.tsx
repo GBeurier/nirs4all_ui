@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Plus, Trash2, Users, Folder, Database as DBIcon, GitBranch, BarChart2, UserPlus } from 'feather-icons-react';
 import { apiClient } from '../api/client';
 import type { Dataset, Group, DatasetFile } from '../types';
@@ -6,7 +6,7 @@ import DatasetTable from '../components/DatasetTable';
 import GroupsModal from '../components/GroupsModal';
 import AddDatasetModal from '../components/AddDatasetModal';
 import EditDatasetModal from '../components/EditDatasetModal_v2';
-import { selectFolder } from '../utils/fileDialogs';
+import { selectFolder, isPywebviewAvailable } from '../utils/fileDialogs';
 
 const WorkspacePage = () => {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -23,7 +23,7 @@ const WorkspacePage = () => {
   const [showEditDatasetModal, setShowEditDatasetModal] = useState(false);
   const [editingDataset, setEditingDataset] = useState<Dataset | null>(null);
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
-  const isDesktop = typeof window !== 'undefined' && !!(window as any).pywebview?.api;
+  const workspaceFolderInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load workspace data
   const loadWorkspace = async () => {
@@ -51,23 +51,17 @@ const WorkspacePage = () => {
     loadStats();
   }, [datasets]);
 
-  // Periodically check backend availability to provide clearer error messages
+  // Check backend availability once on mount
   useEffect(() => {
-    let mounted = true;
     const check = async () => {
       try {
         await apiClient.getWorkspace();
-        if (mounted) setBackendAvailable(true);
+        setBackendAvailable(true);
       } catch (e) {
-        if (mounted) setBackendAvailable(false);
+        setBackendAvailable(false);
       }
     };
     check();
-    const id = setInterval(check, 5000);
-    return () => {
-      mounted = false;
-      clearInterval(id);
-    };
   }, []);
 
   // NOTE: We intentionally DO NOT create hidden <input webkitdirectory> fallbacks in browser mode.
@@ -230,7 +224,7 @@ const WorkspacePage = () => {
         </div>
       )}
       <div className="max-w-7xl mx-auto">
-        {!isDesktop && (
+        {!isPywebviewAvailable() && (
           <div className="mb-4 p-3 rounded bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800">
             You are running the web version in a browser. To select local folders with absolute
             filesystem paths (required to link datasets and set the workspace) please use the desktop
@@ -286,29 +280,56 @@ const WorkspacePage = () => {
 
           {/* Big Change Workspace Button (top-right) */}
           <div>
-            {/* Fallback: hidden inputs are created programmatically to avoid TypeScript attribute issues */}
+            {/* Hidden folder input for browser fallback */}
+            <input
+              ref={workspaceFolderInputRef}
+              type="file"
+              {...({ webkitdirectory: '', directory: '' } as any)}
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = e.target.files;
+                if (files && files.length > 0) {
+                  const firstFile = files[0];
+                  const path = (firstFile as any).webkitRelativePath || firstFile.name;
+                  const folderName = path.split('/')[0];
+                  alert(`Browser mode limitation: Cannot get absolute path.\n\nSelected folder: ${folderName}\n\nPlease use the desktop app for full functionality, or provide the absolute path via the API.`);
+                }
+                e.currentTarget.value = '';
+              }}
+            />
+
             <button
               onClick={async () => {
-                try {
-                  const folderPath = await selectFolder();
-                  if (!folderPath) {
-                    // No native picker available in this browser environment.
-                    alert('No native folder picker available in this browser.\n\nTo pick a workspace folder with an absolute path please run the desktop app (launcher).');
-                    return;
-                  }
+                console.log('[WorkspacePage] Change Workspace button clicked');
+                // Try pywebview first (desktop app)
+                if (isPywebviewAvailable()) {
+                  console.log('[WorkspacePage] Using pywebview selectFolder');
+                  try {
+                    const folderPath = await selectFolder();
+                    console.log('[WorkspacePage] selectFolder returned:', folderPath);
+                    if (!folderPath) {
+                      console.log('[WorkspacePage] User cancelled or no folder selected');
+                      return; // User cancelled
+                    }
 
-                  // If pywebview returned a string path (desktop), use it directly
-                  if (typeof folderPath === 'string') {
-                    await handleSelectWorkspace(folderPath);
-                    return;
-                  }
+                    // If pywebview returned a string path (desktop), use it directly
+                    if (typeof folderPath === 'string') {
+                      console.log('[WorkspacePage] Calling handleSelectWorkspace with:', folderPath);
+                      await handleSelectWorkspace(folderPath);
+                      return;
+                    }
 
-                  // If browser returned a FileSystem handle, show helpful message
-                  alert('Browser-based folder selection is not supported for workspace operations. Please use the desktop application for full functionality.');
-                  return;
-                } catch (err) {
-                  console.error('Failed to select workspace folder', err);
-                  alert('Failed to select workspace folder');
+                    // Shouldn't happen with pywebview
+                    alert('Unexpected folder picker result');
+                  } catch (err) {
+                    console.error('[WorkspacePage] Error in selectFolder:', err);
+                    alert('Failed to select workspace folder: ' + String(err));
+                  }
+                } else {
+                  console.log('[WorkspacePage] Pywebview not available, using HTML input fallback');
+                  // Fallback to HTML input (browser/dev mode)
+                  workspaceFolderInputRef.current?.click();
                 }
               }}
               title="Open folder to set as workspace"
@@ -493,7 +514,7 @@ const WorkspacePage = () => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
                   const name = formData.get('groupName') as string;
-                  const description = formData.get('groupDescription') as string;
+                  // const description = formData.get('groupDescription') as string;
 
                   if (!name.trim()) {
                     alert('Please enter a group name');

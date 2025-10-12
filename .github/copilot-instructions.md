@@ -8,3 +8,6 @@
 # It has a workspace to manage datasets, a pipeline builder, and visualization tools.
 # The UI communicates with the nirs4all FastAPI backend through defined API endpoints.
 
+
+# DON'T WRITE SUMMARIES OR DOCUMENTATION IF NOT ASKED
+# ONLY WRITE THE CODE THAT IS ASKED FOR AND UPDATE README OR GENERAL DOCS IF IT'S A MAJOR FEATURE

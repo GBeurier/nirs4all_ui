@@ -1,35 +1,62 @@
-# React + TypeScript + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
 # nirs4all UI
 
 Desktop application for the nirs4all NIR spectroscopy analysis platform. Built with React, TypeScript, and pywebview for a native desktop experience.
+
+## Quick Start
+
+### Development Mode
+```bash
+.\run_all.bat dev
+```
+Starts frontend dev server + backend + desktop app with hot reload.
+
+### Production Mode
+```bash
+npm run prod
+```
+Builds and starts the production app with:
+- Backend console (shows nirs4all pipeline logs)
+- Application window (main UI)
+
+Close the app window to stop everything.
+
+## Development
+
+### Web-only Development (Faster)
+```bash
+npm run dev
+```
+Then open `http://localhost:5173` in your browser.
+
+### Full Desktop Development
+```bash
+.\run_all.bat dev
+```
+Starts Vite + backend + pywebview window.
+
+## Building
+
+```bash
+npm run build              # Build frontend
+npm run desktop:build      # Package as executable
+```
+
+## Tech Stack
+
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **Desktop**: pywebview + PyInstaller
+- **Backend**: FastAPI (from nirs4all core)
 
 ## Overview
 
 This is a standalone UI application for nirs4all that connects to the FastAPI backend. It provides:
 
 - **Workspace Management**: Link/unlink datasets, organize into groups
+- **Pipeline Editor**: Visual pipeline builder with nirs4all format support
 - **Dataset Configuration**: Configure preprocessing and feature selection
-- **File Browser**: Native and fallback file selection dialogs
-- **Group Management**: Create, rename, delete, and manage dataset groups
+- **Pipeline Execution**: Run ML/DL pipelines on datasets
 - **Results Visualization**: View predictions and pipeline results
+- **File Browser**: Native file selection dialogs
 
 ## Tech Stack
 
@@ -74,6 +101,32 @@ nirs4all_ui/
 ├── tailwind.config.js    # Tailwind CSS configuration
 └── tsconfig.json         # TypeScript configuration
 ```
+
+## Features
+
+### Pipeline Editor
+- Visual pipeline builder with drag-and-drop
+- **Full nirs4all format support** - load/save pipelines in nirs4all JSON format
+- Generator nodes (`_or_`, `_range_`) for parameter sweeps
+- Support for all sklearn and nirs4all transformations
+- See [NIRS4ALL_FORMAT.md](NIRS4ALL_FORMAT.md) and [QUICK_START_NIRS4ALL.md](QUICK_START_NIRS4ALL.md)
+
+### Workspace Management
+- Link/unlink datasets
+- Organize into groups
+- Native file dialogs
+
+### Pipeline Execution
+- Run ML/DL pipelines on datasets
+- Real-time progress tracking
+- View results and metrics
+
+### Supported Components
+- **Scalers**: MinMax, Standard, Robust
+- **NIRS Transforms**: Detrend, Derivatives, SNV, MSC, Savitzky-Golay, Haar
+- **Models**: PLS Regression, Random Forest, SVM, Neural Networks
+- **Cross-Validation**: ShuffleSplit, KFold
+- **Generators**: OR combinations, Range sweeps
 
 ## Development Setup
 
@@ -313,9 +366,35 @@ When making changes:
 5. Use Tailwind CSS for styling
 6. Handle errors gracefully with try-catch
 
+## Documentation
+
+- **[PRODUCTION_MODE.md](PRODUCTION_MODE.md)** - Complete guide for running in production
+- **[NIRS4ALL_FORMAT.md](NIRS4ALL_FORMAT.md)** - Full nirs4all pipeline format specification
+- **[QUICK_START_NIRS4ALL.md](QUICK_START_NIRS4ALL.md)** - Quick start guide for nirs4all format
+- **[ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)** - System architecture and data flow
+- **[PROD_SETUP_SUMMARY.md](PROD_SETUP_SUMMARY.md)** - Production setup summary
+
+## Scripts Reference
+
+```bash
+# Development
+npm run dev              # Start Vite dev server
+npm run desktop:dev      # Start pywebview in dev mode
+.\run_all.bat dev        # Start full dev environment
+
+# Production
+npm run build            # Build for production
+start_app.bat            # Start production app (recommended)
+.\run_all.bat prod       # Build and start production
+
+# Other
+npm run preview          # Preview production build
+npm run lint             # Run ESLint
+```
+
 ## License
 
-[Add your license here]
+MIT License - See LICENSE file for details
 
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 

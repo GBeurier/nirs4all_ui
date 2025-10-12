@@ -17,7 +17,7 @@ import {
   type ComponentLibraryJSON
 } from '../components/pipeline/libraryDataLoader';
 import { apiClient } from '../api/client';
-import { saveFile as saveFileDialog } from '../utils/fileDialogs';
+import { saveFile as saveFileDialog, writeLocalFile, isPywebviewAvailable } from '../utils/fileDialogs';
 import { removeItemById, setTreeItemProperties } from '@clevertask/react-sortable-tree';
 import {
   loadNirs4allPipeline,
@@ -229,19 +229,26 @@ const PipelinePage = () => {
       if (filePath) {
         const pipelineJson = exportNirs4allPipeline(nodes);
 
-        const blob = new Blob([pipelineJson], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filePath.split(/[\\/]/).pop() || defaultFilename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        // If we have pywebview and got a string path, write directly to file
+        if (isPywebviewAvailable() && typeof filePath === 'string') {
+          await writeLocalFile(filePath, pipelineJson);
+          alert(`Pipeline saved successfully to:\n${filePath}`);
+        } else {
+          // Fallback to browser download
+          const blob = new Blob([pipelineJson], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = typeof filePath === 'string' ? filePath.split(/[\\/]/).pop() || defaultFilename : defaultFilename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
       }
     } catch (error) {
       console.error('Failed to save pipeline:', error);
-      alert('Failed to save pipeline');
+      alert(`Failed to save pipeline: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 

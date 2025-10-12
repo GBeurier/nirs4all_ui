@@ -21,7 +21,16 @@ declare global {
  * Check if pywebview API is available
  */
 export const isPywebviewAvailable = (): boolean => {
-  return typeof window !== 'undefined' && !!window.pywebview?.api;
+  const available = typeof window !== 'undefined' && !!window.pywebview?.api;
+  if (typeof window !== 'undefined') {
+    console.log('[FileDialogs] Pywebview check:', {
+      windowPywebview: window.pywebview,
+      hasApi: !!window.pywebview?.api,
+      apiMethods: window.pywebview?.api ? Object.keys(window.pywebview.api) : [],
+      available
+    });
+  }
+  return available;
 };
 
 /**
@@ -31,27 +40,32 @@ export const isPywebviewAvailable = (): boolean => {
 export type FolderPickerResult = string | any | null;
 
 export const selectFolder = async (): Promise<FolderPickerResult> => {
+  console.log('[selectFolder] Called');
   if (!isPywebviewAvailable()) {
+    console.log('[selectFolder] Pywebview not available, trying File System Access API');
     // Try the File System Access API when available (provides native directory picker in modern browsers)
     if (typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function') {
       try {
         const handle = await window.showDirectoryPicker();
+        console.log('[selectFolder] File System Access API returned:', handle);
         return handle;
       } catch (err) {
-        console.warn('Directory picker canceled or not available:', err);
+        console.warn('[selectFolder] Directory picker canceled or not available:', err);
         return null;
       }
     }
 
-    console.warn('pywebview API not available and File System Access API not present.');
+    console.warn('[selectFolder] No folder picker available');
     return null;
   }
 
+  console.log('[selectFolder] Calling pywebview select_folder');
   try {
-  const result = await window.pywebview!.api.select_folder();
-  return result;
+    const result = await window.pywebview!.api.select_folder();
+    console.log('[selectFolder] Pywebview returned:', result);
+    return result;
   } catch (error) {
-    console.error('Failed to open folder dialog:', error);
+    console.error('[selectFolder] Pywebview error:', error);
     return null;
   }
 };
@@ -119,19 +133,30 @@ export const saveFile = async (
  * For use after selectFile returns a path
  */
 export const readLocalFile = async (filePath: string | any): Promise<string> => {
-  // In pywebview, we need to use fetch with file:// protocol
   try {
-    // If it's a FileSystemFileHandle (from File System Access API)
+    // If it's a FileSystemFileHandle (from File System Access API in browser)
     if (filePath && typeof filePath === 'object' && typeof filePath.getFile === 'function') {
       const f: File = await filePath.getFile();
       return await f.text();
     }
 
-    // If it's a string path (pywebview), fetch via file://
+    // If it's a string path (pywebview), use API endpoint to read file
     if (typeof filePath === 'string') {
-      const response = await fetch(`file://${filePath}`);
-      if (!response.ok) throw new Error(`Failed to read file: ${response.statusText}`);
-      return await response.text();
+      // In production with pywebview, use the API endpoint to read files
+      // (fetch with file:// doesn't work due to CORS)
+      const response = await fetch('/api/files/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_path: filePath })
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(error.detail || 'Failed to read file');
+      }
+
+      const data = await response.json();
+      return data.content;
     }
 
     throw new Error('Unsupported filePath type for readLocalFile');
@@ -146,18 +171,36 @@ export const readLocalFile = async (filePath: string | any): Promise<string> => 
  * For use after saveFile returns a path
  */
 export const writeLocalFile = async (filePath: string, content: string): Promise<void> => {
-  // Note: pywebview doesn't provide direct file write from JS
-  // We need to use fetch POST to a local server or add a Python API method
-  // For now, we'll use the browser download approach as fallback
-  console.warn('Direct file write not implemented. Using download fallback.');
+  try {
+    // In production with pywebview, use the API endpoint to write files
+    if (isPywebviewAvailable() && typeof filePath === 'string') {
+      const response = await fetch('/api/files/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_path: filePath, content: content })
+      });
 
-  const blob = new Blob([content], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filePath.split(/[\\/]/).pop() || 'file.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(error.detail || 'Failed to write file');
+      }
+
+      return;
+    }
+
+    // Fallback: use browser download approach
+    console.warn('Using browser download fallback for file save.');
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filePath.split(/[\\/]/).pop() || 'file.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to write local file:', error);
+    throw error;
+  }
 };

@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Activity, Folder, GitBranch, Database, BarChart2, Layers } from 'feather-icons-react';
+import { Folder, GitBranch, Database, BarChart2, Layers } from 'feather-icons-react';
 
 const Layout = () => {
   const navItems = [
