@@ -66,6 +66,24 @@
       "description": "Remove baseline drift and trends"
     },
     {
+      "id": "nirs_transforms",
+      "label": "NIRS Transformations",
+      "categoryId": "preprocessing",
+      "description": "Near-infrared spectroscopy specific transformations"
+    },
+    {
+      "id": "regression",
+      "label": "Regression",
+      "categoryId": "model_training",
+      "description": "Regression algorithms"
+    },
+    {
+      "id": "cross_validation",
+      "label": "Cross Validation",
+      "categoryId": "special",
+      "description": "Cross-validation and data splitting strategies"
+    },
+    {
       "id": "statistical",
       "label": "Statistical Features",
       "categoryId": "feature_extraction",
@@ -704,6 +722,250 @@
       "generationMode": "out"
     },
     {
+      "id": "first_derivative",
+      "label": "First Derivative",
+      "shortName": "1stDeriv",
+      "subcategoryId": "nirs_transforms",
+      "description": "Calculate first derivative of spectral data",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "second_derivative",
+      "label": "Second Derivative",
+      "shortName": "2ndDeriv",
+      "subcategoryId": "nirs_transforms",
+      "description": "Calculate second derivative of spectral data",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "gaussian_filter",
+      "label": "Gaussian Filter",
+      "shortName": "Gaussian",
+      "subcategoryId": "nirs_transforms",
+      "description": "Apply Gaussian smoothing filter",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "sigma": 1.0
+      },
+      "editableParams": [
+        {
+          "name": "sigma",
+          "type": "number",
+          "description": "Standard deviation for Gaussian kernel",
+          "default": 1.0
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "snv",
+      "label": "Standard Normal Variate",
+      "shortName": "SNV",
+      "subcategoryId": "nirs_transforms",
+      "description": "Standardize each spectrum individually",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "savitzky_golay",
+      "label": "Savitzky-Golay",
+      "shortName": "SavGol",
+      "subcategoryId": "nirs_transforms",
+      "description": "Savitzky-Golay filter for smoothing and derivatives",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "window_length": 11,
+        "polyorder": 2,
+        "deriv": 0
+      },
+      "editableParams": [
+        {
+          "name": "window_length",
+          "type": "integer",
+          "description": "Length of the filter window (must be odd)",
+          "default": 11
+        },
+        {
+          "name": "polyorder",
+          "type": "integer",
+          "description": "Order of polynomial to fit",
+          "default": 2
+        },
+        {
+          "name": "deriv",
+          "type": "integer",
+          "description": "Order of derivative (0 = smoothing only)",
+          "default": 0
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "haar_wavelet",
+      "label": "Haar Wavelet",
+      "shortName": "Haar",
+      "subcategoryId": "nirs_transforms",
+      "description": "Haar wavelet transformation",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "level": 1
+      },
+      "editableParams": [
+        {
+          "name": "level",
+          "type": "integer",
+          "description": "Decomposition level",
+          "default": 1
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "msc",
+      "label": "Multiplicative Scatter Correction",
+      "shortName": "MSC",
+      "subcategoryId": "nirs_transforms",
+      "description": "Correct for scatter effects in spectral data",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "pls_regression",
+      "label": "PLS Regression",
+      "shortName": "PLS",
+      "subcategoryId": "regression",
+      "description": "Partial Least Squares Regression",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "n_components": 2
+      },
+      "editableParams": [
+        {
+          "name": "n_components",
+          "type": "integer",
+          "description": "Number of components to keep",
+          "default": 2
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "shuffle_split",
+      "label": "Shuffle Split",
+      "shortName": "ShuffleSplit",
+      "subcategoryId": "cross_validation",
+      "description": "Random permutation cross-validator",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "n_splits": 3,
+        "test_size": 0.25,
+        "random_state": null
+      },
+      "editableParams": [
+        {
+          "name": "n_splits",
+          "type": "integer",
+          "description": "Number of re-shuffling & splitting iterations",
+          "default": 3
+        },
+        {
+          "name": "test_size",
+          "type": "number",
+          "description": "Proportion of dataset for test split (0.0 to 1.0)",
+          "default": 0.25
+        },
+        {
+          "name": "random_state",
+          "type": "integer",
+          "description": "Random seed for reproducibility (null for random)",
+          "default": null
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "kfold",
+      "label": "K-Fold",
+      "shortName": "KFold",
+      "subcategoryId": "cross_validation",
+      "description": "K-Folds cross-validator",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "n_splits": 5,
+        "shuffle": false,
+        "random_state": null
+      },
+      "editableParams": [
+        {
+          "name": "n_splits",
+          "type": "integer",
+          "description": "Number of folds",
+          "default": 5
+        },
+        {
+          "name": "shuffle",
+          "type": "boolean",
+          "description": "Whether to shuffle data before splitting",
+          "default": false
+        },
+        {
+          "name": "random_state",
+          "type": "integer",
+          "description": "Random seed when shuffle=True (null for random)",
+          "default": null
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "chart_2d",
+      "label": "2D Chart",
+      "shortName": "Chart2D",
+      "subcategoryId": "containers",
+      "description": "Visualize data in 2D chart",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "y_processing",
+      "label": "Y Processing",
+      "shortName": "Y-Process",
+      "subcategoryId": "containers",
+      "description": "Processing operations for target variables",
+      "nodeType": "container",
+      "allowedChildren": [
+        "minmax_scaler",
+        "standard_scaler",
+        "robust_scaler"
+      ],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
       "id": "probability_calibration",
       "label": "Probability Calibration",
       "shortName": "CalibProb",
@@ -740,7 +1002,14 @@
         "lowpass_filter",
         "highpass_filter",
         "detrend",
-        "polynomial_baseline"
+        "polynomial_baseline",
+        "first_derivative",
+        "second_derivative",
+        "gaussian_filter",
+        "snv",
+        "savitzky_golay",
+        "haar_wavelet",
+        "msc"
       ],
       "defaultParams": {},
       "editableParams": [],
@@ -761,7 +1030,14 @@
         "lowpass_filter",
         "highpass_filter",
         "detrend",
-        "polynomial_baseline"
+        "polynomial_baseline",
+        "first_derivative",
+        "second_derivative",
+        "gaussian_filter",
+        "snv",
+        "savitzky_golay",
+        "haar_wavelet",
+        "msc"
       ],
       "defaultParams": {},
       "editableParams": [],
@@ -782,7 +1058,14 @@
         "lowpass_filter",
         "highpass_filter",
         "detrend",
-        "polynomial_baseline"
+        "polynomial_baseline",
+        "first_derivative",
+        "second_derivative",
+        "gaussian_filter",
+        "snv",
+        "savitzky_golay",
+        "haar_wavelet",
+        "msc"
       ],
       "defaultParams": {},
       "editableParams": [],
@@ -803,7 +1086,14 @@
         "lowpass_filter",
         "highpass_filter",
         "detrend",
-        "polynomial_baseline"
+        "polynomial_baseline",
+        "first_derivative",
+        "second_derivative",
+        "gaussian_filter",
+        "snv",
+        "savitzky_golay",
+        "haar_wavelet",
+        "msc"
       ],
       "defaultParams": {},
       "editableParams": [],

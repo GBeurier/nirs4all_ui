@@ -19,6 +19,12 @@ import {
 import { apiClient } from '../api/client';
 import { saveFile as saveFileDialog } from '../utils/fileDialogs';
 import { removeItemById, setTreeItemProperties } from '@clevertask/react-sortable-tree';
+import {
+  loadNirs4allPipeline,
+  exportNirs4allPipeline,
+  treeNodesToNirs4all
+} from '../utils/nirs4allConverter';
+
 
 
 const PipelinePage = () => {
@@ -196,22 +202,10 @@ const PipelinePage = () => {
     }
   };
 
-  // Flatten tree for export
-  const flattenTreeForExport = (items: TreeNode[]): any[] => {
-    const result: any[] = [];
-    for (const item of items) {
-      result.push({ component: item.componentId, params: item.params || {} });
-      if (item.children && item.children.length > 0) {
-        result.push(...flattenTreeForExport(item.children));
-      }
-    }
-    return result;
-  };
-
-  // Export pipeline
+  // Export pipeline in nirs4all format
   const exportPipeline = () => {
-    const exported = flattenTreeForExport(nodes);
-    const blob = new Blob([JSON.stringify({ nodes: exported }, null, 2)], {
+    const pipelineJson = exportNirs4allPipeline(nodes);
+    const blob = new Blob([pipelineJson], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
@@ -224,7 +218,7 @@ const PipelinePage = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Save pipeline
+  // Save pipeline in nirs4all format
   const savePipeline = async () => {
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -233,10 +227,9 @@ const PipelinePage = () => {
       const filePath = await saveFileDialog(defaultFilename, ['JSON files (*.json)']);
 
       if (filePath) {
-        const exported = flattenTreeForExport(nodes);
-        const content = JSON.stringify({ nodes: exported }, null, 2);
+        const pipelineJson = exportNirs4allPipeline(nodes);
 
-        const blob = new Blob([content], { type: 'application/json' });
+        const blob = new Blob([pipelineJson], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -252,51 +245,13 @@ const PipelinePage = () => {
     }
   };
 
-  // Normalize pipeline to TreeNodes
-  const normalizePipelineToNodes = (pipeline: any): TreeNode[] => {
-    const candidate =
-      (Array.isArray(pipeline) && pipeline) ||
-      pipeline?.steps ||
-      pipeline?.nodes ||
-      pipeline?.components ||
-      [];
-    if (!Array.isArray(candidate)) return [];
-
-    return candidate.map((s: any) => {
-      const comp = s.component || s.name || s.type || s.op || s;
-      const lib = findLibraryItemById(comp) || {
-        id: comp,
-        label: String(comp),
-        category: 'preprocessing',
-        shortName: comp,
-      };
-
-      const nodeType = isGeneratorNode(comp)
-        ? 'generation'
-        : supportsChildren(comp)
-        ? 'container'
-        : 'regular';
-
-      return {
-        id: genId(),
-        componentId: lib.id,
-        label: lib.label,
-        category: lib.category,
-        shortName: lib.shortName,
-        params: s.params || s.config || {},
-        nodeType,
-        children: [],
-      } as TreeNode;
-    });
-  };
-
   // Load pipeline from session storage or URL
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem('pipeline_from_prediction');
       if (stored) {
         const parsed = JSON.parse(stored);
-        const nodesToLoad = normalizePipelineToNodes(parsed);
+        const nodesToLoad = loadNirs4allPipeline(parsed);
         if (nodesToLoad.length > 0) setNodes(nodesToLoad);
         sessionStorage.removeItem('pipeline_from_prediction');
       }
@@ -312,7 +267,7 @@ const PipelinePage = () => {
           .loadPipelineFromPrediction(pid)
           .then((res: any) => {
             if (res && res.pipeline) {
-              const nodesToLoad = normalizePipelineToNodes(res.pipeline);
+              const nodesToLoad = loadNirs4allPipeline(res.pipeline);
               if (nodesToLoad.length > 0) setNodes(nodesToLoad);
             }
           })
@@ -326,7 +281,7 @@ const PipelinePage = () => {
 
   // Handle load saved pipeline
   const handleLoadSavedPipeline = (p: any) => {
-    const nodesToLoad = normalizePipelineToNodes(p);
+    const nodesToLoad = loadNirs4allPipeline(p);
     if (nodesToLoad.length > 0) setNodes(nodesToLoad);
     setShowLoadModal(false);
   };
@@ -356,7 +311,9 @@ const PipelinePage = () => {
     setRunning(true);
     setProgress(2);
     try {
-      const cfg: any = { nodes: flattenTreeForExport(nodes) };
+      // Convert to nirs4all format for backend
+      const pipeline = treeNodesToNirs4all(nodes);
+      const cfg: any = { pipeline };
       const selected = Array.from(selectedDatasetIds || []);
       if (selected.length === 1) cfg.dataset_id = selected[0];
       else if (selected.length > 1) cfg.dataset_ids = selected;
@@ -488,7 +445,7 @@ const PipelinePage = () => {
       )}
       {showPinModal && (
         <PinPipelineModal
-          pipeline={flattenTreeForExport(nodes)}
+          pipeline={treeNodesToNirs4all(nodes)}
           onClose={() => setShowPinModal(false)}
           onPinned={() => setShowPinModal(false)}
         />
