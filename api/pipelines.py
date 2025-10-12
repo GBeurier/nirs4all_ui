@@ -72,6 +72,50 @@ async def get_pipeline(pipeline_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get pipeline: {str(e)}")
 
 
+@router.post("/pipeline")
+async def save_pipeline(
+    name: str = Body(...),
+    description: str = Body(...),
+    pipeline: list = Body(...)
+):
+    """Save/pin a pipeline to the workspace."""
+    try:
+        pipelines_path = workspace_manager.get_pipelines_path()
+        if not pipelines_path:
+            raise HTTPException(status_code=409, detail="No workspace selected")
+
+        pipelines_dir = Path(pipelines_path)
+        pipelines_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create filename from name (sanitize)
+        filename = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in name)
+        pipeline_file = pipelines_dir / f"{filename}.json"
+
+        # Create pipeline data structure
+        from datetime import datetime
+        pipeline_data = {
+            "name": name,
+            "description": description,
+            "created_at": datetime.now().isoformat(),
+            "steps": pipeline
+        }
+
+        # Write to file
+        with open(pipeline_file, 'w', encoding='utf-8') as f:
+            json.dump(pipeline_data, f, indent=2)
+
+        return {
+            "success": True,
+            "id": filename,
+            "path": str(pipeline_file)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save pipeline: {str(e)}")
+
+
 @router.post("/files/read")
 async def read_local_file(file_path: str = Body(..., embed=True)):
     """Read contents of a local file (for pywebview desktop mode)."""

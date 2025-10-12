@@ -7,7 +7,7 @@ declare global {
     pywebview?: {
       api: {
         select_folder: () => Promise<string | null>;
-        select_file: (fileTypes?: string[]) => Promise<string | null>;
+        select_file: (fileTypes?: string[], allowMultiple?: boolean) => Promise<string | string[] | null>;
         save_file: (defaultFilename?: string, fileTypes?: string[]) => Promise<string | null>;
       };
     };
@@ -73,13 +73,19 @@ export const selectFolder = async (): Promise<FolderPickerResult> => {
 /**
  * Open native file picker dialog
  * @param fileTypes Array of file type descriptions (e.g., ['JSON files (*.json)'])
- * @returns Selected file path or null if canceled
+ * @param allowMultiple Whether to allow selecting multiple files
+ * @returns Selected file path(s) or null if canceled
  */
-export const selectFile = async (fileTypes?: string[]): Promise<string | null> => {
+export const selectFile = async (
+  fileTypes?: string[],
+  allowMultiple: boolean = false
+): Promise<string | string[] | null> => {
+  console.log(`[selectFile] Called with fileTypes=${fileTypes}, allowMultiple=${allowMultiple}`);
   // Prefer pywebview when available
   if (isPywebviewAvailable()) {
     try {
-      const result = await window.pywebview!.api.select_file(fileTypes);
+      const result = await window.pywebview!.api.select_file(fileTypes, allowMultiple);
+      console.log('[selectFile] Pywebview returned:', result);
       return result;
     } catch (error) {
       console.error('Failed to open file dialog via pywebview:', error);

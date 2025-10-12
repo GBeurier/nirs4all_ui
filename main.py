@@ -56,10 +56,10 @@ if public_path.exists():
     app.mount("/public", StaticFiles(directory=str(public_path)), name="public")
 
     # Also serve public files at root level for production compatibility
-    @app.get("/nirs4all_logo.png")
+    @app.get("/nirs4all.png")
     async def serve_logo():
         """Serve logo from public folder"""
-        logo_file = public_path / "nirs4all_logo.png"
+        logo_file = public_path / "nirs4all.png"
         if logo_file.exists():
             return FileResponse(str(logo_file))
         raise HTTPException(status_code=404, detail="Logo not found")
@@ -72,10 +72,10 @@ if public_path.exists():
             return FileResponse(str(lib_file))
         raise HTTPException(status_code=404, detail="Component library not found")
 
-    @app.get("/vite.svg")
+    @app.get("/nirs4all.svg")
     async def serve_vite_svg():
         """Serve vite svg from public folder"""
-        svg_file = public_path / "vite.svg"
+        svg_file = public_path / "nirs4all.svg"
         if svg_file.exists():
             return FileResponse(str(svg_file))
         raise HTTPException(status_code=404, detail="Vite SVG not found")

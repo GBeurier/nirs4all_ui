@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Trash2, Play, Database, Folder, MapPin, Save, Download } from 'feather-icons-react';
+import { Trash2, Play, Database, Folder, MapPin, Save } from 'feather-icons-react';
 import type { Dataset } from '../../types';
 
 interface PipelineToolbarProps {
@@ -8,7 +8,6 @@ interface PipelineToolbarProps {
   onLoad: () => void;
   onPin: () => void;
   onSave: () => void;
-  onExport: () => void;
   running: boolean;
   datasetsList: Dataset[];
   groupsList: any[];
@@ -22,7 +21,6 @@ const PipelineToolbar: React.FC<PipelineToolbarProps> = ({
   onLoad,
   onPin,
   onSave,
-  onExport,
   running,
   datasetsList,
   groupsList,
@@ -199,14 +197,6 @@ const PipelineToolbar: React.FC<PipelineToolbarProps> = ({
           aria-label="Save pipeline"
         >
           <Save className="w-5 h-5" />
-        </button>
-        <button
-          title="Export pipeline (quick download)"
-          onClick={onExport}
-          className="px-3 py-2 rounded-lg bg-white border text-gray-700 hover:bg-gray-50 transition-colors"
-          aria-label="Export pipeline"
-        >
-          <Download className="w-5 h-5" />
         </button>
       </div>
     </div>

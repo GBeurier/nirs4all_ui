@@ -202,38 +202,28 @@ const PipelinePage = () => {
     }
   };
 
-  // Export pipeline in nirs4all format
-  const exportPipeline = () => {
-    const pipelineJson = exportNirs4allPipeline(nodes);
-    const blob = new Blob([pipelineJson], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'pipeline.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
   // Save pipeline in nirs4all format
   const savePipeline = async () => {
     try {
+      console.log('[PipelinePage] savePipeline called');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const defaultFilename = `pipeline_${timestamp}.json`;
 
+      console.log('[PipelinePage] Calling saveFileDialog with:', defaultFilename);
       const filePath = await saveFileDialog(defaultFilename, ['JSON files (*.json)']);
+      console.log('[PipelinePage] saveFileDialog returned:', filePath);
 
       if (filePath) {
         const pipelineJson = exportNirs4allPipeline(nodes);
+        console.log('[PipelinePage] Pipeline JSON length:', pipelineJson.length);
 
         // If we have pywebview and got a string path, write directly to file
         if (isPywebviewAvailable() && typeof filePath === 'string') {
+          console.log('[PipelinePage] Using writeLocalFile to:', filePath);
           await writeLocalFile(filePath, pipelineJson);
           alert(`Pipeline saved successfully to:\n${filePath}`);
         } else {
+          console.log('[PipelinePage] Using browser download fallback');
           // Fallback to browser download
           const blob = new Blob([pipelineJson], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
@@ -245,9 +235,11 @@ const PipelinePage = () => {
           a.remove();
           URL.revokeObjectURL(url);
         }
+      } else {
+        console.log('[PipelinePage] No file path selected (user cancelled)');
       }
     } catch (error) {
-      console.error('Failed to save pipeline:', error);
+      console.error('[PipelinePage] Error in savePipeline:', error);
       alert(`Failed to save pipeline: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
@@ -404,7 +396,6 @@ const PipelinePage = () => {
                 onLoad={() => setShowLoadModal(true)}
                 onPin={() => setShowPinModal(true)}
                 onSave={savePipeline}
-                onExport={exportPipeline}
                 running={running}
                 datasetsList={datasetsList}
                 groupsList={groupsList}

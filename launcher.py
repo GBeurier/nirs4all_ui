@@ -25,40 +25,61 @@ class Api:
             return result[0]
         return None
 
-    def select_file(self, file_types=None):
+    def select_file(self, file_types=None, allow_multiple=False):
         """Open native file picker dialog"""
         global window
         if not window:
+            print('[select_file] No window available')
             return None
 
         if file_types is None:
             file_types = ('JSON files (*.json)',)
 
+        print(f'[select_file] Opening dialog with file_types={file_types}, allow_multiple={allow_multiple}')
         result = window.create_file_dialog(
             webview.OPEN_DIALOG,
-            allow_multiple=False,
+            allow_multiple=allow_multiple,
             file_types=file_types
         )
-        if result and len(result) > 0:
+        print(f'[select_file] Dialog returned: {result}')
+
+        # If multiple selection, return all files
+        if allow_multiple and result:
+            return result
+        # If single selection, return first file
+        elif result and len(result) > 0:
             return result[0]
         return None
 
-    def save_file(self, default_filename='file.json', file_types=None):
+    def save_file(self, default_filename='pipeline.json', file_types=None):
         """Open native save file dialog"""
         global window
         if not window:
+            print('[save_file] No window available')
             return None
 
         if file_types is None:
             file_types = ('JSON files (*.json)',)
 
+        print(f'[save_file] Opening dialog with default_filename={default_filename}, file_types={file_types}')
         result = window.create_file_dialog(
             webview.SAVE_DIALOG,
             save_filename=default_filename,
             file_types=file_types
         )
+        print(f'[save_file] Dialog returned: {result} (type: {type(result)})')
+
+        # SAVE_DIALOG returns a tuple like other dialogs
+        # Return first element if it's a tuple/list, otherwise return as-is
         if result:
-            return result
+            if isinstance(result, (list, tuple)) and len(result) > 0:
+                path = result[0]
+                print(f'[save_file] Extracted path from tuple: {path}')
+                return path
+            else:
+                print(f'[save_file] Returning result directly: {result}')
+                return result
+        print('[save_file] No file selected')
         return None
 
 
