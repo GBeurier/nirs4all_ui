@@ -4,10 +4,18 @@ import type { TreeItems } from '@clevertask/react-sortable-tree';
 import LoadPipelineModal from '../components/LoadPipelineModal';
 import PinPipelineModal from '../components/PinPipelineModal';
 import ComponentLibrary from '../components/pipeline/ComponentLibrary';
+import type { LibraryGroup } from '../components/pipeline/ComponentLibrary';
 import PipelineCanvas, { type TreeNode } from '../components/pipeline/PipelineCanvas';
 import PipelineToolbar from '../components/pipeline/PipelineToolbar';
 import NodeConfigPanel from '../components/pipeline/NodeConfigPanel';
-import { LIBRARY_GROUPS, findLibraryItemById, isGeneratorNode, supportsChildren } from '../components/pipeline/libraryData';
+import {
+  loadComponentLibrary,
+  convertToLibraryGroups,
+  findComponentById,
+  isGeneratorNode as isGeneratorNodeFromLib,
+  supportsChildren as supportsChildrenFromLib,
+  type ComponentLibraryJSON
+} from '../components/pipeline/libraryDataLoader';
 import { apiClient } from '../api/client';
 import { saveFile as saveFileDialog } from '../utils/fileDialogs';
 import { removeItemById, setTreeItemProperties } from '@clevertask/react-sortable-tree';
@@ -15,6 +23,9 @@ import { removeItemById, setTreeItemProperties } from '@clevertask/react-sortabl
 
 const PipelinePage = () => {
   const [nodes, setNodes] = useState<TreeItems<TreeNode>>([]);
+  const [libraryData, setLibraryData] = useState<ComponentLibraryJSON | null>(null);
+  const [libraryGroups, setLibraryGroups] = useState<LibraryGroup[]>([]);
+  // Start with all groups collapsed
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -27,6 +38,41 @@ const PipelinePage = () => {
   const [running, setRunning] = useState(false);
 
   const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // Load component library from JSON
+  useEffect(() => {
+    (async () => {
+      const library = await loadComponentLibrary();
+      setLibraryData(library);
+      const groups = convertToLibraryGroups(library);
+      setLibraryGroups(groups);
+      // Start with all groups collapsed
+      setCollapsedGroups(new Set(groups.map(g => g.id)));
+    })();
+  }, []);
+
+  // Helper functions that use the library data
+  const findLibraryItemById = (componentId: string) => {
+    if (!libraryData) return null;
+    const comp = findComponentById(libraryData, componentId);
+    if (!comp) return null;
+    return {
+      id: comp.id,
+      label: comp.label,
+      category: comp.category.id,
+      shortName: comp.shortName,
+    };
+  };
+
+  const isGeneratorNode = (componentId: string) => {
+    if (!libraryData) return false;
+    return isGeneratorNodeFromLib(libraryData, componentId);
+  };
+
+  const supportsChildren = (componentId: string) => {
+    if (!libraryData) return false;
+    return supportsChildrenFromLib(libraryData, componentId);
+  };
 
   // Add component to canvas
   const addComponentToCanvas = (componentId: string) => {
@@ -375,7 +421,7 @@ const PipelinePage = () => {
             {/* Component Library - Fixed width sidebar */}
             <div className="w-[300px]">
               <ComponentLibrary
-                groups={LIBRARY_GROUPS}
+                groups={libraryGroups}
                 collapsedGroups={collapsedGroups}
                 collapsedSubgroups={collapsedSubgroups}
                 onToggleGroup={toggleGroup}
@@ -416,6 +462,7 @@ const PipelinePage = () => {
                   onNodeSelect={setSelectedNodeId}
                   onNodeRemove={handleRemoveNode}
                   onLibraryDropIntoContainer={addComponentToContainer}
+                  libraryData={libraryData}
                 />
               </div>
 
@@ -425,6 +472,7 @@ const PipelinePage = () => {
                   selectedNodeId={selectedNodeId}
                   selectedNode={selectedNode}
                   onUpdateParams={handleUpdateNodeParams}
+                  libraryData={libraryData}
                 />
               </div>
             </div>

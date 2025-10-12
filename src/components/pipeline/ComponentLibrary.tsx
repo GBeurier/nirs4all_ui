@@ -1,10 +1,11 @@
 import React from 'react';
-import { Filter, Layers as LayersIcon, Cpu, Activity, ChevronDown } from 'feather-icons-react';
+import { Filter, Layers as LayersIcon, Cpu, Activity, List, ChevronDown } from 'feather-icons-react';
 
 export interface LibraryItem {
   id: string;
   label: string;
   shortName?: string;
+  description?: string;
 }
 
 export interface LibrarySubgroup {
@@ -16,6 +17,8 @@ export interface LibrarySubgroup {
 export interface LibraryGroup {
   id: string;
   label: string;
+  featherIcon?: string;
+  description?: string;
   className: string;
   subgroups: LibrarySubgroup[];
 }
@@ -25,7 +28,7 @@ const GROUP_ICONS: Record<string, any> = {
   feature_extraction: LayersIcon,
   model_training: Cpu,
   prediction: Activity,
-  special: Activity, // Using Activity as placeholder for special nodes
+  special: List,
 };
 
 const GROUP_ICON_COLORS: Record<string, string> = {
@@ -82,15 +85,20 @@ const ComponentLibrary: React.FC<ComponentLibraryProps> = ({
               type="button"
               onClick={() => onToggleGroup(g.id)}
               aria-expanded={!collapsedGroups.has(g.id)}
+              title={g.description || g.label}
               className={`w-full flex justify-between items-center p-4 ${g.className} ${GROUP_HOVER_CLASSES[g.id]} transition-colors cursor-pointer`}
             >
               <div className="flex items-center">
-                {GROUP_ICONS[g.id] &&
+                {/* Use Feather icons (monochrome) - they're dope! */}
+                {GROUP_ICONS[g.id] ? (
                   React.createElement(GROUP_ICONS[g.id], {
                     className: `mr-3 w-6 h-6 ${GROUP_ICON_COLORS[g.id]}`,
                     stroke: 'currentColor',
                     fill: 'none',
-                  })}
+                  })
+                ) : (
+                  g.featherIcon && <span className="mr-3 text-2xl">{g.featherIcon}</span>
+                )}
                 <span className="font-medium text-gray-900">{g.label}</span>
               </div>
               <div className="text-sm font-medium">
@@ -144,7 +152,7 @@ const ComponentLibrary: React.FC<ComponentLibraryProps> = ({
                                 className={`component-card ${GROUP_ITEM_CLASSES[g.id]} border rounded p-2 cursor-move text-sm transition-colors ${
                                   isContainer ? 'font-semibold border-2' : ''
                                 } ${isGenerator ? 'italic border-dashed' : ''}`}
-                                title={isContainer ? 'Container - can hold child nodes' : isGenerator ? 'Generator node' : ''}
+                                title={item.description || (isContainer ? 'Container - can hold child nodes' : isGenerator ? 'Generator node' : item.label)}
                               >
                                 {item.label}
                                 {isContainer && <span className="ml-1 text-xs">📦</span>}

@@ -2,6 +2,8 @@ import React from 'react';
 import { SortableTree, type TreeItem as BaseTreeItem, type RenderItemProps, type TreeItems, TreeItemStructure } from '@clevertask/react-sortable-tree';
 import '@clevertask/react-sortable-tree/dist/react-sortable-tree.css';
 import { Trash2 } from 'feather-icons-react';
+import type { ComponentLibraryJSON } from './libraryDataLoader';
+import { getCategoryInfo, isChildAllowed } from './libraryDataLoader';
 
 export interface TreeNode extends BaseTreeItem {
   id: string;
@@ -21,6 +23,7 @@ interface PipelineCanvasProps {
   onNodeSelect: (nodeId: string | null) => void;
   onNodeRemove: (nodeId: string) => void;
   onLibraryDropIntoContainer?: (parentId: string, componentId: string) => void;
+  libraryData?: ComponentLibraryJSON | null;
 }
 
 const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
@@ -30,8 +33,36 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   onNodeSelect,
   onNodeRemove,
   onLibraryDropIntoContainer,
+  libraryData,
 }) => {
   const [dragOverContainerId, setDragOverContainerId] = React.useState<string | null>(null);
+
+  // Get category colors from library data
+  const getCategoryColors = (componentId: string) => {
+    if (libraryData) {
+      const categoryInfo = getCategoryInfo(libraryData, componentId);
+      if (categoryInfo) {
+        return {
+          color: categoryInfo.color,
+          bgColor: categoryInfo.bgColor,
+        };
+      }
+    }
+    // Fallback to hardcoded colors if library not loaded
+    const category = nodes.find(n => n.componentId === componentId)?.category || '';
+    return {
+      color: category === 'preprocessing' ? '#60a5fa' :
+             category === 'feature_extraction' ? '#4ade80' :
+             category === 'model_training' ? '#a78bfa' :
+             category === 'prediction' ? '#f87171' :
+             category === 'special' ? '#fbbf24' : '#9ca3af',
+      bgColor: category === 'preprocessing' ? '#eff6ff' :
+               category === 'feature_extraction' ? '#f0fdf4' :
+               category === 'model_training' ? '#faf5ff' :
+               category === 'prediction' ? '#fef2f2' :
+               category === 'special' ? '#fffbeb' : '#f9fafb',
+    };
+  };
   // Helper to check if a tree structure is valid (only containers have children)
   const isValidTreeStructure = (items: TreeNode[]): boolean => {
     for (const item of items) {
@@ -41,6 +72,17 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
           console.warn(`Invalid structure: Node "${item.label}" (type: ${item.nodeType}) cannot have children`);
           return false;
         }
+
+        // Check if children are allowed in this container
+        if (libraryData) {
+          for (const child of item.children) {
+            if (!isChildAllowed(libraryData, item.componentId, child.componentId)) {
+              console.warn(`Invalid structure: "${child.label}" (${child.componentId}) is not allowed in "${item.label}" (${item.componentId})`);
+              return false;
+            }
+          }
+        }
+
         // Recursively check children
         if (!isValidTreeStructure(item.children)) {
           return false;
@@ -108,34 +150,30 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
 
       const componentId = e.dataTransfer.getData('application/x-component-id');
       if (componentId && onLibraryDropIntoContainer) {
+        // Validate if this child is allowed
+        if (libraryData && !isChildAllowed(libraryData, item.componentId, componentId)) {
+          alert(`Cannot add this component: "${componentId}" is not allowed in "${item.label}".\n\nOnly preprocessing components are allowed in containers.`);
+          return;
+        }
         console.log('Library component dropped into container:', componentId, '→', item.id);
         onLibraryDropIntoContainer(item.id as string, componentId);
       }
     };
+
+    const colors = getCategoryColors(item.componentId);
 
     return (
       <TreeItemStructure
         {...props}
         draggableItemStyle={{
           padding: '1rem',
+          marginBottom: '0.75rem', // Add spacing between rows
           borderRadius: '0.5rem',
           transition: 'all 0.2s',
-          borderLeft: `4px solid ${
-            item.category === 'preprocessing' ? '#60a5fa' :
-            item.category === 'feature_extraction' ? '#4ade80' :
-            item.category === 'model_training' ? '#a78bfa' :
-            item.category === 'prediction' ? '#f87171' :
-            item.category === 'special' ? '#fbbf24' : '#9ca3af'
-          }`,
-          backgroundColor: `${
-            item.category === 'preprocessing' ? '#eff6ff' :
-            item.category === 'feature_extraction' ? '#f0fdf4' :
-            item.category === 'model_training' ? '#faf5ff' :
-            item.category === 'prediction' ? '#fef2f2' :
-            item.category === 'special' ? '#fffbeb' : '#f9fafb'
-          }`,
+          borderLeft: `4px solid ${colors.color}`,
+          backgroundColor: colors.bgColor,
           outline: isSelected ? '4px solid #3b82f6' : 'none',
-          outlineOffset: '2px',
+          outlineOffset: '4px', // Increased offset so border doesn't get clipped
         }}
       >
         <div className="flex items-center justify-between w-full">
@@ -224,10 +262,10 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
             onDrop={handleContainerDrop}
           >
             <div className={`text-sm font-medium ${isDragOver ? 'text-blue-700' : 'text-gray-500'}`}>
-              📦 {isDragOver ? 'Release to drop here' : 'Drop components here'}
+              📦 {isDragOver ? 'Release to drop here' : 'Drop preprocessing components here'}
             </div>
             <div className="text-xs text-gray-400 mt-1">
-              {isDragOver ? 'Add component to this container' : 'This container is ready to accept child nodes'}
+              {isDragOver ? 'Add component to this container' : 'Only preprocessing components (scalers, filters, baseline) are allowed'}
             </div>
           </div>
         )}
@@ -246,8 +284,8 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
           >
             <div className={`text-xs font-medium ${isDragOver ? 'text-blue-700' : 'text-gray-500'}`}>
               {isDragOver
-                ? '➕ Release to add to this container'
-                : `Contains ${item.children.length} child node${item.children.length !== 1 ? 's' : ''} (drop here to add more)`
+                ? '➕ Release to add preprocessing component'
+                : `Contains ${item.children.length} child node${item.children.length !== 1 ? 's' : ''} (drop preprocessing here to add more)`
               }
             </div>
           </div>

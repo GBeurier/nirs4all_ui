@@ -1,46 +1,142 @@
 import React, { useState, useEffect } from 'react';
-
-interface ParamEntry {
-  id: string;
-  key: string;
-  value: string;
-}
+import type { ComponentLibraryJSON, ComponentDefinition, ParamDefinition } from './libraryDataLoader';
+import { findComponentById } from './libraryDataLoader';
 
 interface NodeConfigPanelProps {
   selectedNodeId: string | null;
   selectedNode: any | null;
   onUpdateParams: (nodeId: string, params: Record<string, any>) => void;
+  libraryData?: ComponentLibraryJSON | null;
 }
 
 const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   selectedNodeId,
   selectedNode,
   onUpdateParams,
+  libraryData,
 }) => {
-  const [paramEntries, setParamEntries] = useState<ParamEntry[]>([]);
-
-  const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const [params, setParams] = useState<Record<string, any>>({});
+  const [componentDef, setComponentDef] = useState<ComponentDefinition | null>(null);
 
   useEffect(() => {
     if (!selectedNode) {
-      setParamEntries([]);
+      setParams({});
+      setComponentDef(null);
       return;
     }
-    const entries = Object.entries(selectedNode.params || {}).map(([k, v]) => ({
-      id: genId(),
-      key: k,
-      value: String(v),
+
+    // Load component definition from library
+    if (libraryData) {
+      const def = findComponentById(libraryData, selectedNode.componentId);
+      if (def) {
+        setComponentDef(def);
+        // Initialize params with defaults, then override with actual values
+        const initialParams = { ...def.defaultParams, ...(selectedNode.params || {}) };
+        setParams(initialParams);
+        return;
+      }
+    }
+
+    // Fallback if no library data
+    setParams(selectedNode.params || {});
+    setComponentDef(null);
+  }, [selectedNodeId, selectedNode, libraryData]);
+
+  const handleParamChange = (paramName: string, value: any) => {
+    setParams((prev) => ({
+      ...prev,
+      [paramName]: value,
     }));
-    setParamEntries(entries);
-  }, [selectedNodeId, selectedNode]);
+  };
 
   const handleSaveParams = () => {
     if (!selectedNodeId) return;
-    const params: Record<string, any> = {};
-    paramEntries.forEach((p) => {
-      if (p.key) params[p.key] = p.value;
-    });
     onUpdateParams(selectedNodeId, params);
+  };
+
+  const renderParamInput = (paramDef: ParamDefinition) => {
+    const currentValue = params[paramDef.name] ?? paramDef.default;
+
+    switch (paramDef.type) {
+      case 'boolean':
+        return (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={currentValue === true || currentValue === 'true'}
+              onChange={(e) => handleParamChange(paramDef.name, e.target.checked)}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">{paramDef.description}</span>
+          </label>
+        );
+
+      case 'select':
+        return (
+          <select
+            value={String(currentValue)}
+            onChange={(e) => handleParamChange(paramDef.name, e.target.value)}
+            className="border rounded px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {paramDef.options?.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        );
+
+      case 'integer':
+        return (
+          <input
+            type="number"
+            step="1"
+            value={currentValue ?? ''}
+            onChange={(e) => handleParamChange(paramDef.name, parseInt(e.target.value) || 0)}
+            className="border rounded px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        );
+
+      case 'number':
+        return (
+          <input
+            type="number"
+            step="any"
+            value={currentValue ?? ''}
+            onChange={(e) => handleParamChange(paramDef.name, parseFloat(e.target.value) || 0)}
+            className="border rounded px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        );
+
+      case 'array':
+        return (
+          <input
+            type="text"
+            value={Array.isArray(currentValue) ? JSON.stringify(currentValue) : currentValue}
+            onChange={(e) => {
+              try {
+                const parsed = JSON.parse(e.target.value);
+                handleParamChange(paramDef.name, parsed);
+              } catch {
+                handleParamChange(paramDef.name, e.target.value);
+              }
+            }}
+            placeholder="[value1, value2, ...]"
+            className="border rounded px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+          />
+        );
+
+      case 'string':
+      default:
+        return (
+          <input
+            type="text"
+            value={currentValue ?? ''}
+            onChange={(e) => handleParamChange(paramDef.name, e.target.value)}
+            className="border rounded px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        );
+    }
   };
 
   if (!selectedNodeId || !selectedNode) {
@@ -59,68 +155,50 @@ const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <div>
           <div className="font-semibold text-lg text-gray-900">{selectedNode.label}</div>
           <div className="text-sm text-gray-500">{selectedNode.componentId}</div>
+          {componentDef?.description && (
+            <div className="text-xs text-gray-400 mt-1">{componentDef.description}</div>
+          )}
         </div>
-        <div className="text-xs text-gray-400">ID: {selectedNodeId}</div>
+        <div className="text-xs text-gray-400">ID: {selectedNodeId.slice(-8)}</div>
       </div>
 
-      <div className="space-y-3">
-        {paramEntries.length === 0 ? (
-          <div className="text-sm text-gray-500 py-4 text-center">
-            No parameters configured. Add key/value pairs below.
-          </div>
+      <div className="space-y-4">
+        {componentDef && componentDef.editableParams.length > 0 ? (
+          <>
+            <div className="space-y-3">
+              {componentDef.editableParams.map((paramDef) => (
+                <div key={paramDef.name} className="space-y-1">
+                  <label className="block">
+                    <span className="text-sm font-medium text-gray-700">
+                      {paramDef.name}
+                      {paramDef.type && (
+                        <span className="ml-2 text-xs text-gray-500">({paramDef.type})</span>
+                      )}
+                    </span>
+                    {paramDef.description && paramDef.type !== 'boolean' && (
+                      <span className="block text-xs text-gray-500 mb-1">
+                        {paramDef.description}
+                      </span>
+                    )}
+                  </label>
+                  {renderParamInput(paramDef)}
+                </div>
+              ))}
+            </div>
+            <div className="pt-2 border-t">
+              <button
+                onClick={handleSaveParams}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+              >
+                Save Configuration
+              </button>
+            </div>
+          </>
         ) : (
-          <div className="space-y-2">
-            {paramEntries.map((pe) => (
-              <div key={pe.id} className="flex gap-2">
-                <input
-                  type="text"
-                  value={pe.key}
-                  onChange={(e) =>
-                    setParamEntries((prev) =>
-                      prev.map((p) => (p.id === pe.id ? { ...p, key: e.target.value } : p))
-                    )
-                  }
-                  placeholder="Parameter name"
-                  className="border rounded px-3 py-2 w-1/3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <input
-                  type="text"
-                  value={pe.value}
-                  onChange={(e) =>
-                    setParamEntries((prev) =>
-                      prev.map((p) => (p.id === pe.id ? { ...p, value: e.target.value } : p))
-                    )
-                  }
-                  placeholder="Parameter value"
-                  className="border rounded px-3 py-2 flex-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button
-                  onClick={() => setParamEntries((prev) => prev.filter((p) => p.id !== pe.id))}
-                  className="text-red-500 hover:text-red-700 px-3 py-2 rounded hover:bg-red-50"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+          <div className="text-sm text-gray-500 py-4 text-center">
+            {componentDef ? 'No configurable parameters for this component' : 'Loading component definition...'}
           </div>
         )}
-
-        <div className="flex gap-2 pt-2 border-t">
-          <button
-            onClick={() =>
-              setParamEntries((prev) => [...prev, { id: genId(), key: '', value: '' }])
-            }
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-          >
-            + Add Parameter
-          </button>
-          <button
-            onClick={handleSaveParams}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
-          >
-            Save Configuration
-          </button>
-        </div>
       </div>
     </div>
   );

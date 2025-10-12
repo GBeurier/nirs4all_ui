@@ -75,62 +75,83 @@ const PipelineToolbar: React.FC<PipelineToolbarProps> = ({
           {datasetDropdownOpen && (
             <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-96 bg-white border rounded-lg shadow-xl z-50 p-4">
               <div className="space-y-3 max-h-80 overflow-auto">
-                {groupsList.map((g: any) => (
-                  <div key={g.id} className="border-b last:border-b-0 pb-3">
-                    <div className="text-sm font-semibold text-gray-700 mb-2">{g.name}</div>
-                    <div className="space-y-1 pl-3">
-                      {(g.dataset_ids || []).map((did: string) => {
-                        const ds = datasetsList.find((d) => d.id === did);
-                        if (!ds) return null;
+                {/* Groups Section */}
+                {groupsList.length > 0 && (
+                  <>
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Groups</div>
+                    <div className="space-y-1">
+                      {groupsList.map((g: any) => {
+                        const groupDatasetIds = g.dataset_ids || [];
+                        const allGroupDatasetsSelected = groupDatasetIds.length > 0 &&
+                          groupDatasetIds.every((did: string) => selectedDatasetIds.has(did));
+                        const someGroupDatasetsSelected = groupDatasetIds.some((did: string) => selectedDatasetIds.has(did));
+
                         return (
-                          <label key={did} className="flex items-center gap-2 text-sm hover:bg-gray-50 p-1 rounded cursor-pointer">
+                          <label key={g.id} className="flex items-center gap-2 text-sm hover:bg-blue-50 p-2 rounded cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={selectedDatasetIds.has(did)}
+                              checked={allGroupDatasetsSelected}
+                              ref={(el) => {
+                                if (el) el.indeterminate = !allGroupDatasetsSelected && someGroupDatasetsSelected;
+                              }}
                               onChange={() => {
-                                onDatasetSelectionChange(
-                                  new Set(
-                                    selectedDatasetIds.has(did)
-                                      ? Array.from(selectedDatasetIds).filter((id) => id !== did)
-                                      : [...Array.from(selectedDatasetIds), did]
-                                  )
-                                );
+                                if (allGroupDatasetsSelected) {
+                                  // Uncheck all datasets in this group
+                                  onDatasetSelectionChange(
+                                    new Set(
+                                      Array.from(selectedDatasetIds).filter((id) => !groupDatasetIds.includes(id))
+                                    )
+                                  );
+                                } else {
+                                  // Check all datasets in this group
+                                  onDatasetSelectionChange(
+                                    new Set([...Array.from(selectedDatasetIds), ...groupDatasetIds])
+                                  );
+                                }
                               }}
                               className="rounded"
                             />
-                            <span>{ds.name}</span>
+                            <span className="font-medium">{g.name}</span>
+                            <span className="text-xs text-gray-500 ml-auto">({groupDatasetIds.length} datasets)</span>
                           </label>
                         );
                       })}
                     </div>
-                  </div>
-                ))}
-                {datasetsList.filter((d) => !(d.groups && d.groups.length)).length > 0 && (
-                  <div className="pt-2">
-                    <div className="text-sm font-semibold text-gray-700 mb-2">Ungrouped</div>
-                    <div className="space-y-1 pl-3">
-                      {datasetsList.filter((d) => !(d.groups && d.groups.length)).map((d) => (
-                        <label key={d.id} className="flex items-center gap-2 text-sm hover:bg-gray-50 p-1 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedDatasetIds.has(d.id)}
-                            onChange={() => {
-                              onDatasetSelectionChange(
-                                new Set(
-                                  selectedDatasetIds.has(d.id)
-                                    ? Array.from(selectedDatasetIds).filter((id) => id !== d.id)
-                                    : [...Array.from(selectedDatasetIds), d.id]
-                                )
-                              );
-                            }}
-                            className="rounded"
-                          />
-                          <span>{d.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                    <div className="border-t border-gray-300 my-3"></div>
+                  </>
                 )}
+
+                {/* Datasets Section */}
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Datasets</div>
+                <div className="space-y-1">
+                  {datasetsList.map((d) => (
+                    <label key={d.id} className="flex items-center gap-2 text-sm hover:bg-gray-50 p-2 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedDatasetIds.has(d.id)}
+                        onChange={() => {
+                          onDatasetSelectionChange(
+                            new Set(
+                              selectedDatasetIds.has(d.id)
+                                ? Array.from(selectedDatasetIds).filter((id) => id !== d.id)
+                                : [...Array.from(selectedDatasetIds), d.id]
+                            )
+                          );
+                        }}
+                        className="rounded"
+                      />
+                      <span>{d.name}</span>
+                      {d.groups && d.groups.length > 0 && (
+                        <span className="text-xs text-gray-400 ml-auto">
+                          {d.groups.map((gid: string) => {
+                            const grp = groupsList.find((g: any) => g.id === gid);
+                            return grp?.name;
+                          }).filter(Boolean).join(', ')}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="mt-3 flex justify-between pt-3 border-t">
                 <button

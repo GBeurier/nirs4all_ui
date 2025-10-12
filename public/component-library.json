@@ -1,0 +1,837 @@
+{
+  "categories": [
+    {
+      "id": "preprocessing",
+      "label": "Preprocessing",
+      "featherIcon": "Filter",
+      "description": "Data preprocessing and transformation operations",
+      "className": "bg-blue-50 border-blue-200",
+      "color": "#60a5fa",
+      "bgColor": "#eff6ff"
+    },
+    {
+      "id": "feature_extraction",
+      "label": "Feature Extraction",
+      "featherIcon": "Layers",
+      "description": "Extract meaningful features from raw data",
+      "className": "bg-green-50 border-green-200",
+      "color": "#4ade80",
+      "bgColor": "#f0fdf4"
+    },
+    {
+      "id": "model_training",
+      "label": "Model Training",
+      "featherIcon": "Cpu",
+      "description": "Machine learning model training and configuration",
+      "className": "bg-purple-50 border-purple-200",
+      "color": "#a78bfa",
+      "bgColor": "#faf5ff"
+    },
+    {
+      "id": "prediction",
+      "label": "Prediction",
+      "featherIcon": "Activity",
+      "description": "Model inference and prediction operations",
+      "className": "bg-red-50 border-red-200",
+      "color": "#f87171",
+      "bgColor": "#fef2f2"
+    },
+    {
+      "id": "special",
+      "label": "Special Nodes",
+      "featherIcon": "List",
+      "description": "Container and generator nodes for advanced pipelines",
+      "className": "bg-yellow-50 border-yellow-200",
+      "color": "#fbbf24",
+      "bgColor": "#fffbeb"
+    }
+  ],
+  "subcategories": [
+    {
+      "id": "scalers",
+      "label": "Scalers",
+      "categoryId": "preprocessing",
+      "description": "Normalize and scale data"
+    },
+    {
+      "id": "filters",
+      "label": "Filters",
+      "categoryId": "preprocessing",
+      "description": "Apply frequency and signal filters"
+    },
+    {
+      "id": "baseline",
+      "label": "Baseline Correction",
+      "categoryId": "preprocessing",
+      "description": "Remove baseline drift and trends"
+    },
+    {
+      "id": "statistical",
+      "label": "Statistical Features",
+      "categoryId": "feature_extraction",
+      "description": "Compute statistical measures"
+    },
+    {
+      "id": "frequency",
+      "label": "Frequency Domain",
+      "categoryId": "feature_extraction",
+      "description": "Extract frequency-based features"
+    },
+    {
+      "id": "classical",
+      "label": "Classical ML",
+      "categoryId": "model_training",
+      "description": "Traditional machine learning algorithms"
+    },
+    {
+      "id": "neural",
+      "label": "Neural Networks",
+      "categoryId": "model_training",
+      "description": "Deep learning models"
+    },
+    {
+      "id": "prediction_ops",
+      "label": "Prediction Operations",
+      "categoryId": "prediction",
+      "description": "Inference and prediction utilities"
+    },
+    {
+      "id": "containers",
+      "label": "Containers",
+      "categoryId": "special",
+      "description": "Nodes that can contain other nodes"
+    },
+    {
+      "id": "generators",
+      "label": "Generators",
+      "categoryId": "special",
+      "description": "Generate parameter combinations"
+    }
+  ],
+  "components": [
+    {
+      "id": "minmax_scaler",
+      "label": "MinMax Scaler",
+      "shortName": "MinMax",
+      "subcategoryId": "scalers",
+      "description": "Scale features to a given range (default: [0, 1])",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "feature_range": [0, 1]
+      },
+      "editableParams": [
+        {
+          "name": "feature_range",
+          "type": "array",
+          "description": "Desired range of transformed data [min, max]",
+          "default": [0, 1]
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "standard_scaler",
+      "label": "Standard Scaler",
+      "shortName": "StdScaler",
+      "subcategoryId": "scalers",
+      "description": "Standardize features by removing mean and scaling to unit variance",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "with_mean": true,
+        "with_std": true
+      },
+      "editableParams": [
+        {
+          "name": "with_mean",
+          "type": "boolean",
+          "description": "Center data before scaling",
+          "default": true
+        },
+        {
+          "name": "with_std",
+          "type": "boolean",
+          "description": "Scale data to unit variance",
+          "default": true
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "robust_scaler",
+      "label": "Robust Scaler",
+      "shortName": "RobustScaler",
+      "subcategoryId": "scalers",
+      "description": "Scale features using statistics robust to outliers (median and IQR)",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "with_centering": true,
+        "with_scaling": true
+      },
+      "editableParams": [
+        {
+          "name": "with_centering",
+          "type": "boolean",
+          "description": "Center data before scaling",
+          "default": true
+        },
+        {
+          "name": "with_scaling",
+          "type": "boolean",
+          "description": "Scale data to interquartile range",
+          "default": true
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "bandpass_filter",
+      "label": "Bandpass Filter",
+      "shortName": "Bandpass",
+      "subcategoryId": "filters",
+      "description": "Filter frequencies within a specific range",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "low_freq": 0.1,
+        "high_freq": 0.5,
+        "order": 5
+      },
+      "editableParams": [
+        {
+          "name": "low_freq",
+          "type": "number",
+          "description": "Lower frequency cutoff",
+          "default": 0.1
+        },
+        {
+          "name": "high_freq",
+          "type": "number",
+          "description": "Upper frequency cutoff",
+          "default": 0.5
+        },
+        {
+          "name": "order",
+          "type": "integer",
+          "description": "Filter order",
+          "default": 5
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "lowpass_filter",
+      "label": "Lowpass Filter",
+      "shortName": "Lowpass",
+      "subcategoryId": "filters",
+      "description": "Allow frequencies below a cutoff",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "cutoff_freq": 0.5,
+        "order": 5
+      },
+      "editableParams": [
+        {
+          "name": "cutoff_freq",
+          "type": "number",
+          "description": "Cutoff frequency",
+          "default": 0.5
+        },
+        {
+          "name": "order",
+          "type": "integer",
+          "description": "Filter order",
+          "default": 5
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "highpass_filter",
+      "label": "Highpass Filter",
+      "shortName": "Highpass",
+      "subcategoryId": "filters",
+      "description": "Allow frequencies above a cutoff",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "cutoff_freq": 0.1,
+        "order": 5
+      },
+      "editableParams": [
+        {
+          "name": "cutoff_freq",
+          "type": "number",
+          "description": "Cutoff frequency",
+          "default": 0.1
+        },
+        {
+          "name": "order",
+          "type": "integer",
+          "description": "Filter order",
+          "default": 5
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "detrend",
+      "label": "Detrend",
+      "shortName": "Detrend",
+      "subcategoryId": "baseline",
+      "description": "Remove linear trend from signal",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "type": "linear"
+      },
+      "editableParams": [
+        {
+          "name": "type",
+          "type": "select",
+          "options": ["linear", "constant"],
+          "description": "Type of detrending",
+          "default": "linear"
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "polynomial_baseline",
+      "label": "Polynomial Baseline",
+      "shortName": "PolyBaseline",
+      "subcategoryId": "baseline",
+      "description": "Fit and remove polynomial baseline",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "degree": 2
+      },
+      "editableParams": [
+        {
+          "name": "degree",
+          "type": "integer",
+          "description": "Polynomial degree",
+          "default": 2
+        }
+      ],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "mean_feature",
+      "label": "Mean",
+      "shortName": "Mean",
+      "subcategoryId": "statistical",
+      "description": "Calculate mean value",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "axis": 0
+      },
+      "editableParams": [
+        {
+          "name": "axis",
+          "type": "integer",
+          "description": "Axis along which to compute",
+          "default": 0
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "std_feature",
+      "label": "Standard Deviation",
+      "shortName": "StdDev",
+      "subcategoryId": "statistical",
+      "description": "Calculate standard deviation",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "axis": 0
+      },
+      "editableParams": [
+        {
+          "name": "axis",
+          "type": "integer",
+          "description": "Axis along which to compute",
+          "default": 0
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "variance_feature",
+      "label": "Variance",
+      "shortName": "Var",
+      "subcategoryId": "statistical",
+      "description": "Calculate variance",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "axis": 0
+      },
+      "editableParams": [
+        {
+          "name": "axis",
+          "type": "integer",
+          "description": "Axis along which to compute",
+          "default": 0
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "fft_features",
+      "label": "FFT Features",
+      "shortName": "FFT",
+      "subcategoryId": "frequency",
+      "description": "Extract Fast Fourier Transform features",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "n_features": 10
+      },
+      "editableParams": [
+        {
+          "name": "n_features",
+          "type": "integer",
+          "description": "Number of frequency features to extract",
+          "default": 10
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "wavelet_features",
+      "label": "Wavelet Features",
+      "shortName": "Wavelet",
+      "subcategoryId": "frequency",
+      "description": "Extract wavelet transform features",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "wavelet": "db4",
+        "level": 3
+      },
+      "editableParams": [
+        {
+          "name": "wavelet",
+          "type": "select",
+          "options": ["db4", "db8", "sym4", "coif2"],
+          "description": "Wavelet type",
+          "default": "db4"
+        },
+        {
+          "name": "level",
+          "type": "integer",
+          "description": "Decomposition level",
+          "default": 3
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "svm",
+      "label": "SVM",
+      "shortName": "SVM",
+      "subcategoryId": "classical",
+      "description": "Support Vector Machine classifier",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "gamma": "scale"
+      },
+      "editableParams": [
+        {
+          "name": "C",
+          "type": "number",
+          "description": "Regularization parameter",
+          "default": 1.0
+        },
+        {
+          "name": "kernel",
+          "type": "select",
+          "options": ["linear", "poly", "rbf", "sigmoid"],
+          "description": "Kernel type",
+          "default": "rbf"
+        },
+        {
+          "name": "gamma",
+          "type": "select",
+          "options": ["scale", "auto"],
+          "description": "Kernel coefficient",
+          "default": "scale"
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "random_forest",
+      "label": "Random Forest",
+      "shortName": "RF",
+      "subcategoryId": "classical",
+      "description": "Random Forest ensemble classifier",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "n_estimators": 100,
+        "max_depth": null,
+        "min_samples_split": 2
+      },
+      "editableParams": [
+        {
+          "name": "n_estimators",
+          "type": "integer",
+          "description": "Number of trees",
+          "default": 100
+        },
+        {
+          "name": "max_depth",
+          "type": "integer",
+          "description": "Maximum tree depth (null for unlimited)",
+          "default": null
+        },
+        {
+          "name": "min_samples_split",
+          "type": "integer",
+          "description": "Minimum samples to split node",
+          "default": 2
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "logistic_regression",
+      "label": "Logistic Regression",
+      "shortName": "LogReg",
+      "subcategoryId": "classical",
+      "description": "Logistic regression classifier",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "C": 1.0,
+        "max_iter": 100,
+        "solver": "lbfgs"
+      },
+      "editableParams": [
+        {
+          "name": "C",
+          "type": "number",
+          "description": "Inverse regularization strength",
+          "default": 1.0
+        },
+        {
+          "name": "max_iter",
+          "type": "integer",
+          "description": "Maximum iterations",
+          "default": 100
+        },
+        {
+          "name": "solver",
+          "type": "select",
+          "options": ["lbfgs", "liblinear", "newton-cg", "sag", "saga"],
+          "description": "Optimization algorithm",
+          "default": "lbfgs"
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "cnn",
+      "label": "CNN",
+      "shortName": "CNN",
+      "subcategoryId": "neural",
+      "description": "Convolutional Neural Network",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "filters": [32, 64],
+        "kernel_size": 3,
+        "epochs": 50,
+        "batch_size": 32
+      },
+      "editableParams": [
+        {
+          "name": "filters",
+          "type": "array",
+          "description": "Number of filters per layer",
+          "default": [32, 64]
+        },
+        {
+          "name": "kernel_size",
+          "type": "integer",
+          "description": "Convolution kernel size",
+          "default": 3
+        },
+        {
+          "name": "epochs",
+          "type": "integer",
+          "description": "Training epochs",
+          "default": 50
+        },
+        {
+          "name": "batch_size",
+          "type": "integer",
+          "description": "Batch size",
+          "default": 32
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "lstm",
+      "label": "LSTM",
+      "shortName": "LSTM",
+      "subcategoryId": "neural",
+      "description": "Long Short-Term Memory network",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "units": 64,
+        "layers": 2,
+        "epochs": 50,
+        "batch_size": 32
+      },
+      "editableParams": [
+        {
+          "name": "units",
+          "type": "integer",
+          "description": "Number of LSTM units",
+          "default": 64
+        },
+        {
+          "name": "layers",
+          "type": "integer",
+          "description": "Number of LSTM layers",
+          "default": 2
+        },
+        {
+          "name": "epochs",
+          "type": "integer",
+          "description": "Training epochs",
+          "default": 50
+        },
+        {
+          "name": "batch_size",
+          "type": "integer",
+          "description": "Batch size",
+          "default": 32
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "mlp",
+      "label": "MLP",
+      "shortName": "MLP",
+      "subcategoryId": "neural",
+      "description": "Multi-Layer Perceptron",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "hidden_layers": [100, 50],
+        "activation": "relu",
+        "epochs": 50
+      },
+      "editableParams": [
+        {
+          "name": "hidden_layers",
+          "type": "array",
+          "description": "Neurons per hidden layer",
+          "default": [100, 50]
+        },
+        {
+          "name": "activation",
+          "type": "select",
+          "options": ["relu", "tanh", "sigmoid"],
+          "description": "Activation function",
+          "default": "relu"
+        },
+        {
+          "name": "epochs",
+          "type": "integer",
+          "description": "Training epochs",
+          "default": 50
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "batch_prediction",
+      "label": "Batch Prediction",
+      "shortName": "BatchPredict",
+      "subcategoryId": "prediction_ops",
+      "description": "Predict on batch of samples",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "batch_size": 32
+      },
+      "editableParams": [
+        {
+          "name": "batch_size",
+          "type": "integer",
+          "description": "Batch size for prediction",
+          "default": 32
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "real_time_prediction",
+      "label": "Real-time Prediction",
+      "shortName": "RealTimePredict",
+      "subcategoryId": "prediction_ops",
+      "description": "Predict on streaming data",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "buffer_size": 10
+      },
+      "editableParams": [
+        {
+          "name": "buffer_size",
+          "type": "integer",
+          "description": "Size of prediction buffer",
+          "default": 10
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "probability_calibration",
+      "label": "Probability Calibration",
+      "shortName": "CalibProb",
+      "subcategoryId": "prediction_ops",
+      "description": "Calibrate prediction probabilities",
+      "nodeType": "regular",
+      "allowedChildren": [],
+      "defaultParams": {
+        "method": "sigmoid"
+      },
+      "editableParams": [
+        {
+          "name": "method",
+          "type": "select",
+          "options": ["sigmoid", "isotonic"],
+          "description": "Calibration method",
+          "default": "sigmoid"
+        }
+      ],
+      "generationMode": "out"
+    },
+    {
+      "id": "feature_augmentation",
+      "label": "Feature Augmentation",
+      "shortName": "FeatureAug",
+      "subcategoryId": "containers",
+      "description": "Container for feature augmentation operations - generates additional features. Only accepts preprocessing components.",
+      "nodeType": "container",
+      "allowedChildren": [
+        "minmax_scaler",
+        "standard_scaler",
+        "robust_scaler",
+        "bandpass_filter",
+        "lowpass_filter",
+        "highpass_filter",
+        "detrend",
+        "polynomial_baseline"
+      ],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "out"
+    },
+    {
+      "id": "augmentation_sample",
+      "label": "Sample Augmentation",
+      "shortName": "SampleAug",
+      "subcategoryId": "containers",
+      "description": "Container for data augmentation - generates additional samples. Only accepts preprocessing components.",
+      "nodeType": "container",
+      "allowedChildren": [
+        "minmax_scaler",
+        "standard_scaler",
+        "robust_scaler",
+        "bandpass_filter",
+        "lowpass_filter",
+        "highpass_filter",
+        "detrend",
+        "polynomial_baseline"
+      ],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "sequential",
+      "label": "Sequential",
+      "shortName": "Sequential",
+      "subcategoryId": "containers",
+      "description": "Execute child operations in sequence. Only accepts preprocessing components.",
+      "nodeType": "container",
+      "allowedChildren": [
+        "minmax_scaler",
+        "standard_scaler",
+        "robust_scaler",
+        "bandpass_filter",
+        "lowpass_filter",
+        "highpass_filter",
+        "detrend",
+        "polynomial_baseline"
+      ],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "pipeline",
+      "label": "Pipeline",
+      "shortName": "Pipeline",
+      "subcategoryId": "containers",
+      "description": "Full processing pipeline container. Only accepts preprocessing components.",
+      "nodeType": "container",
+      "allowedChildren": [
+        "minmax_scaler",
+        "standard_scaler",
+        "robust_scaler",
+        "bandpass_filter",
+        "lowpass_filter",
+        "highpass_filter",
+        "detrend",
+        "polynomial_baseline"
+      ],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "in-place"
+    },
+    {
+      "id": "_or_",
+      "label": "OR Generator",
+      "shortName": "_OR_",
+      "subcategoryId": "generators",
+      "description": "Generate multiple parameter alternatives (OR logic) - tests each child configuration",
+      "nodeType": "generation",
+      "allowedChildren": ["*"],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "generator"
+    },
+    {
+      "id": "_range_",
+      "label": "Range Generator",
+      "shortName": "_RANGE_",
+      "subcategoryId": "generators",
+      "description": "Generate parameter ranges for grid search",
+      "nodeType": "generation",
+      "allowedChildren": ["*"],
+      "defaultParams": {},
+      "editableParams": [],
+      "generationMode": "generator"
+    }
+  ]
+}
