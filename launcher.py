@@ -3,10 +3,15 @@ Desktop launcher for nirs4all UI using pywebview
 """
 import webview
 import os
+import sys
+import threading
+import time
+from pathlib import Path
 
 
 # Store window reference for API methods
 window = None
+backend_server = None
 
 
 class Api:
@@ -94,9 +99,95 @@ def get_url():
     return 'http://127.0.0.1:8000'
 
 
+def is_packaged():
+    """Check if running as packaged executable"""
+    return getattr(sys, 'frozen', False)
+
+
+def start_backend_server():
+    """Start the FastAPI backend server in a separate thread"""
+    try:
+        import uvicorn
+
+        # Suppress TensorFlow warnings
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+        # Get the correct path for the backend module
+        if is_packaged():
+            # When packaged, the main.py is in _internal directory
+            base_path = Path(sys._MEIPASS)
+        else:
+            # When running from source, use current directory
+            base_path = Path(__file__).parent
+
+        # Add the base path to sys.path so imports work
+        if str(base_path) not in sys.path:
+            sys.path.insert(0, str(base_path))
+
+        # Change working directory to base_path for relative imports
+        os.chdir(str(base_path))
+
+        # Start uvicorn server
+        uvicorn.run(
+            "main:app",
+            host="127.0.0.1",
+            port=8000,
+            log_level="warning",
+            access_log=False
+        )
+    except Exception as e:
+        # Write error to log file in temp directory
+        import tempfile
+        log_file = Path(tempfile.gettempdir()) / "nirs4all_backend_error.log"
+        with open(log_file, "w") as f:
+            f.write(f"Backend startup error:\n{str(e)}\n")
+            import traceback
+            f.write(traceback.format_exc())
+        print(f"Backend error logged to: {log_file}")
+        raise
+
+
 def main():
     """Launch the desktop application"""
     global window
+    global backend_server
+
+    # Determine if we need to show debug console
+    # In pure production (packaged), no debug console
+    # In dev mode or prod_dbg mode, show debug console
+    is_prod = is_packaged()
+    show_debug = not is_prod or os.environ.get('NIRS4ALL_DEBUG', 'false').lower() == 'true'
+
+    # Start backend server in a separate thread (only in production)
+    backend_ready = False
+    if is_prod:
+        print("Starting embedded backend server...")
+        backend_server = threading.Thread(target=start_backend_server, daemon=True)
+        backend_server.start()
+
+        # Wait for backend to be ready with retries
+        print("Waiting for backend to initialize...")
+        max_retries = 10
+        for i in range(max_retries):
+            time.sleep(1)
+            try:
+                import urllib.request
+                urllib.request.urlopen("http://127.0.0.1:8000/api/health", timeout=1)
+                print("Backend ready!")
+                backend_ready = True
+                break
+            except Exception as e:
+                if i == max_retries - 1:
+                    print(f"Warning: Backend not responding after {max_retries} seconds")
+                    print(f"Last error: {e}")
+                    print("Check: C:\\Users\\grego\\AppData\\Local\\Temp\\nirs4all_backend_error.log")
+                    print("Opening window anyway...")
+                else:
+                    print(f"Waiting... ({i+1}/{max_retries})")
+                continue
+
+    print(f"Opening application window (backend_ready={backend_ready})...")
 
     url = get_url()
     api = Api()
@@ -113,9 +204,9 @@ def main():
         js_api=api
     )
 
-    # Start the app with debug enabled to see console logs
-    webview.start(debug=True)
-
-
+    print("Starting webview...")
+    # Start the app with debug based on mode
+    webview.start(debug=show_debug)
+    print("Webview closed.")
 if __name__ == '__main__':
     main()

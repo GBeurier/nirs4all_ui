@@ -17,7 +17,7 @@ const Layout = () => {
         <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-center">
               <img
-          src="/nirs4all.png"
+          src="/nirs4all_logo.png"
           alt="nirs4all"
           className="h-32 w-auto"
               />

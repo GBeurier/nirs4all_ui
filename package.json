@@ -8,11 +8,6 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "prod": "npm run build && node ./scripts/start-prod.js",
-    "desktop:dev": "cross-env VITE_DEV=true python launcher.py",
-    "backend": "node ./scripts/start-backend.js",
-    "dev:all": "node ./scripts/dev-all.js",
-    "dev:desktop:all": "node ./scripts/dev-desktop-all.js",
     "desktop:build": "npm run build && pyinstaller nirs4all.spec"
   },
   "dependencies": {

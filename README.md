@@ -4,21 +4,50 @@ Desktop application for the nirs4all NIR spectroscopy analysis platform. Built w
 
 ## Quick Start
 
-### Development Mode
-```bash
-.\run_all.bat dev
-```
-Starts frontend dev server + backend + desktop app with hot reload.
+All application modes are centralized through the `nirs4all.bat` launcher:
 
-### Production Mode
-```bash
-npm run prod
-```
-Builds and starts the production app with:
-- Backend console (shows nirs4all pipeline logs)
-- Application window (main UI)
+> **Note:** In PowerShell, use `.\nirs4all.bat` instead of `nirs4all.bat`
 
-Close the app window to stop everything.
+### Development Mode (Browser + Hot Reload)
+```bash
+.\nirs4all.bat dev
+```
+- Starts backend server on port 8000
+- Starts Vite dev server on port 5173
+- Opens in your web browser with hot reload
+- Best for rapid UI development
+- Press Ctrl+C to stop both servers
+
+### Production Debug Mode (Desktop App + Debug Console)
+```bash
+.\nirs4all.bat prod_dbg
+```
+- Requires built application: `npm run build`
+- Opens backend console window (shows nirs4all pipeline execution logs)
+- Opens desktop application window **with debug console (F12 available)**
+- Backend runs in separate console window
+- Best for testing production build with full logging
+
+### Production Mode (Standalone App)
+```bash
+.\nirs4all.bat prod
+```
+- Runs the packaged standalone executable with embedded backend
+- Requires: `npm run build && npm run desktop:build`
+- **Shows console window** with backend logs and nirs4all pipeline output
+- Backend server runs embedded in the application
+- No debug console (F12) in the app window
+- Executable located at: `dist\nirs4all\nirs4all.exe`
+
+### Clean Mode (Kill All Processes)
+```bash
+.\nirs4all.bat clean
+```
+- Kills all running backend servers (Python)
+- Kills all Node.js dev servers
+- Kills nirs4all desktop application instances
+- Use when processes are stuck or before restarting
+- Replaces the old `stop_app.bat`
 
 ## Development
 
@@ -376,21 +405,54 @@ When making changes:
 
 ## Scripts Reference
 
+### Centralized Launcher (Recommended)
 ```bash
-# Development
-npm run dev              # Start Vite dev server
-npm run desktop:dev      # Start pywebview in dev mode
-.\run_all.bat dev        # Start full dev environment
-
-# Production
-npm run build            # Build for production
-start_app.bat            # Start production app (recommended)
-.\run_all.bat prod       # Build and start production
-
-# Other
-npm run preview          # Preview production build
-npm run lint             # Run ESLint
+.\nirs4all.bat dev         # Development: Browser + hot reload + backend
+.\nirs4all.bat prod_dbg    # Production debug: Desktop app + logs
+.\nirs4all.bat prod        # Production: Standalone executable
+.\nirs4all.bat build       # Build frontend only
+.\nirs4all.bat package     # Build frontend + package executable
+.\nirs4all.bat clean       # Kill all running servers and apps
 ```
+
+### Build Commands
+```bash
+.\nirs4all.bat build       # Build frontend only
+.\nirs4all.bat package     # Build frontend + package executable (replaces npm run desktop:build)
+```
+
+### Development Tools
+```bash
+npm run dev              # Start Vite dev server only (no backend)
+npm run lint             # Run ESLint
+npm run preview          # Preview production build
+```
+
+### Usage Examples
+```bash
+# Quick development
+.\nirs4all.bat dev
+
+# Stop everything if stuck
+.\nirs4all.bat clean
+
+# Build frontend only
+.\nirs4all.bat build
+
+# Test production build
+.\nirs4all.bat build
+.\nirs4all.bat prod_dbg
+
+# Create standalone app
+.\nirs4all.bat package
+.\nirs4all.bat prod
+```
+
+### Obsolete Files
+The following files are now replaced by `nirs4all.bat` and can be deleted:
+- `run_all.bat` → use `.\nirs4all.bat dev`
+- `start_app.bat` → use `.\nirs4all.bat prod_dbg`
+- `stop_app.bat` → use `.\nirs4all.bat clean`
 
 ## License
 

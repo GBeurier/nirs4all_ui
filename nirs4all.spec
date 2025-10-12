@@ -8,7 +8,7 @@ block_cipher = None
 # Get the current directory
 curr_dir = Path(os.getcwd())
 
-# Collect all files from dist directory
+# Collect all files from dist directory (frontend build)
 dist_datas = []
 dist_dir = curr_dir / 'dist'
 if dist_dir.exists():
@@ -18,12 +18,67 @@ if dist_dir.exists():
             rel_path = file_path.relative_to(curr_dir)
             dist_datas.append((str(file_path), str(rel_path.parent)))
 
+# Collect all files from public directory
+public_datas = []
+public_dir = curr_dir / 'public'
+if public_dir.exists():
+    for root, dirs, files in os.walk(public_dir):
+        for file in files:
+            file_path = Path(root) / file
+            rel_path = file_path.relative_to(curr_dir)
+            public_datas.append((str(file_path), str(rel_path.parent)))
+
+# Collect all API files (backend)
+api_datas = []
+api_dir = curr_dir / 'api'
+if api_dir.exists():
+    for root, dirs, files in os.walk(api_dir):
+        # Skip __pycache__ directories
+        if '__pycache__' in root:
+            continue
+        for file in files:
+            if file.endswith('.py'):
+                file_path = Path(root) / file
+                rel_path = file_path.relative_to(curr_dir)
+                api_datas.append((str(file_path), str(rel_path.parent)))
+
+# Combine all data files
+all_datas = dist_datas + public_datas + api_datas
+
+# Add main.py (backend entry point)
+main_py = curr_dir / 'main.py'
+if main_py.exists():
+    all_datas.append((str(main_py), '.'))
+
 a = Analysis(
     ['launcher.py'],
     pathex=[],
     binaries=[],
-    datas=dist_datas,
-    hiddenimports=[],
+    datas=all_datas,
+    hiddenimports=[
+        'uvicorn',
+        'uvicorn.logging',
+        'uvicorn.loops',
+        'uvicorn.loops.auto',
+        'uvicorn.protocols',
+        'uvicorn.protocols.http',
+        'uvicorn.protocols.http.auto',
+        'uvicorn.protocols.websockets',
+        'uvicorn.protocols.websockets.auto',
+        'uvicorn.lifespan',
+        'uvicorn.lifespan.on',
+        'fastapi',
+        'fastapi.staticfiles',
+        'fastapi.middleware',
+        'fastapi.middleware.cors',
+        'starlette.middleware',
+        'starlette.middleware.cors',
+        'api.workspace',
+        'api.datasets',
+        'api.pipelines',
+        'api.predictions',
+        'api.workspace_manager',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -46,7 +101,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,  # Set to False for windowed app
+    console=True,  # Set to True to show console for backend logs
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
