@@ -219,7 +219,7 @@ if "%MODE%"=="dev_app" (
 
   echo [2/3] Starting Vite dev server...
   start "nirs4all Vite [DEV]" cmd /k "cls && echo ======================================== && echo. && echo   nirs4all Vite Dev Server && echo. && echo ======================================== && echo. && echo Server: http://localhost:5173 && echo Hot reload enabled - edit files to see changes! && echo. && echo Press Ctrl+C to stop && echo. && npm run dev"
-  
+
   echo       Waiting for Vite to initialize...
   timeout /t 5 /nobreak >nul
 
