@@ -460,7 +460,8 @@
       "description": "Container for target-side preprocessing",
       "nodeType": "container",
       "allowedChildren": [
-        "category:targets"
+        "category:targets",
+        "category:feature_engineering"
       ],
       "defaultParams": {},
       "editableParams": [],

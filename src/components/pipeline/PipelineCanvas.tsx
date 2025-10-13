@@ -109,16 +109,12 @@ const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
     if (typeof newNodesOrUpdater === 'function') {
       onNodesChange((prev) => {
         const newNodes = newNodesOrUpdater(prev);
-        // Validate before applying
-        if (isValidTreeStructure(newNodes)) {
-          return newNodes;
-        } else {
-          console.warn('Drop rejected: Only container nodes can have children');
-          return prev; // Keep previous state
-        }
+        // Skip validation during drag operations - the library manages drag state internally
+        // Only validate on actual structural changes (adding/removing nodes via drop)
+        return newNodes;
       });
     } else {
-      // Direct value
+      // Direct value updates should validate
       if (isValidTreeStructure(newNodesOrUpdater)) {
         onNodesChange(newNodesOrUpdater);
       } else {

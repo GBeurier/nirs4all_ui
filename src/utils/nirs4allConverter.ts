@@ -378,6 +378,7 @@ function convertGeneratorNode(step: any, ctx: ConvertContext): TreeNode {
       },
       nodeType: 'generation',
       children,
+      collapsed: false,
       meta: mergeNodeMeta(buildNodeMetaFromComponent(meta), { origin: 'imported' }),
     };
   }
@@ -415,6 +416,7 @@ function convertGeneratorNode(step: any, ctx: ConvertContext): TreeNode {
       },
       nodeType: 'generation',
       children,
+      collapsed: false,
       meta: mergeNodeMeta(buildNodeMetaFromComponent(meta), { origin: 'imported' }),
     };
   }
@@ -447,6 +449,7 @@ function convertWorkflowNode(key: string, value: any, ctx: ConvertContext): Tree
     params: paramsTemplate,
     nodeType: meta?.definition.nodeType ?? 'container',
     children,
+    collapsed: false,
     meta: mergedMeta,
   };
 }
