@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict, field
-import importlib.util
 import zipfile
 import pandas as pd
 import numpy as np
@@ -25,9 +24,13 @@ if str(nirs4all_path) not in sys.path:
 # Import only the specific modules we need
 try:
     from nirs4all.dataset.dataset_config import DatasetConfigs
+    from nirs4all.dataset.dataset_config_parser import parse_config
+    from nirs4all.dataset.loader import handle_data
 except ImportError as e:
     print(f"Warning: Could not import nirs4all: {e}")
     DatasetConfigs = None
+    parse_config = None
+    handle_data = None
 
 
 @dataclass
@@ -200,20 +203,13 @@ class WorkspaceManager:
         if not Path(dataset_path).exists():
             raise ValueError(f"Dataset path does not exist: {dataset_path}")
 
+        # Check if parse_config is available
+        if parse_config is None:
+            raise ValueError("nirs4all library not available: cannot parse dataset configuration")
+
         # Lightweight dataset inspection without importing the full nirs4all package.
         try:
-            # 1) Parse dataset folder to find X/Y paths using the local parser module (no package __init__ execution)
-            parser_path = Path(__file__).parents[2] / 'nirs4all' / 'nirs4all' / 'dataset' / 'dataset_config_parser.py'
-            if not parser_path.exists():
-                raise ValueError("Internal error: dataset_config_parser module not found in repository")
-
-            spec = importlib.util.spec_from_file_location('dataset_config_parser_local', str(parser_path))
-            if spec is None or spec.loader is None:
-                raise RuntimeError("Failed to prepare dataset_config_parser module")
-            parser_mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(parser_mod)
-
-            parsed_config, dataset_name = parser_mod.parse_config(dataset_path)
+            parsed_config, dataset_name = parse_config(dataset_path)
             if parsed_config is None:
                 raise ValueError("No valid dataset configuration found in the specified path")
 
@@ -328,7 +324,6 @@ class WorkspaceManager:
                     print(f"Warning: failed to inspect Y file: {e}")
 
             # If multiple X sources were found, inspect each to get per-source feature counts
-            num_features_per_source = None
             if x_candidates:
                 try:
                     fps = []
@@ -342,17 +337,16 @@ class WorkspaceManager:
                         if samples_from_first is None and s:
                             samples_from_first = s
                     if fps:
-                        num_features_per_source = fps
-                        # default num_features mirrors loader behavior: concat if specified
-                        x_mode = parsed_config.get('x_source_mode', 'stack')
-                        if x_mode == 'concat':
-                            num_features = sum(fps)
+                        # Store num_features as list for multi-source or int for single source
+                        # This mirrors nirs4all's SpectroDataset.num_features property
+                        if len(fps) == 1:
+                            num_features = fps[0]
                         else:
-                            num_features = fps[0] if len(fps) > 0 else num_features
+                            num_features = fps
                         if samples_from_first:
                             num_samples = samples_from_first
                 except Exception:
-                    num_features_per_source = None
+                    pass
 
             dataset_info = {
                 "id": f"dataset_{len(self._workspace_config.datasets) + 1}",
@@ -363,10 +357,8 @@ class WorkspaceManager:
                 "num_features": num_features,
                 "num_targets": num_targets,
                 "task_type": parsed_config.get('task_type', 'unknown'),
-                "sources": len(x_candidates) if x_candidates else 1
+                "num_sources": len(x_candidates) if x_candidates else 1
             }
-            if num_features_per_source is not None:
-                dataset_info['num_features_per_source'] = num_features_per_source
 
             # Check if already linked
             for existing in self._workspace_config.datasets:
@@ -412,39 +404,74 @@ class WorkspaceManager:
         if not dataset_info:
             return None
 
-        # Reload dataset info using nirs4all DatasetConfigs
+        # Reload dataset info using nirs4all DatasetConfigs with saved config
         try:
             if DatasetConfigs is None:
                 raise ValueError("nirs4all library not available")
 
-            dataset_configs = DatasetConfigs([dataset_info["path"]])
+            # Build config dict to pass to DatasetConfigs
+            # If we have saved config and files, use them; otherwise use folder path
+            if dataset_info.get("config") and dataset_info.get("files"):
+                # Build full config dict from saved config and files
+                cfg = dataset_info["config"]
+
+                # CSV parsing parameters must be in 'global_params' to be used by load_csv
+                global_params = {
+                    'delimiter': cfg.get('delimiter', ';'),
+                    'decimal_separator': cfg.get('decimal_separator', '.'),
+                    'has_header': cfg.get('has_header', True),
+                }
+
+                print(f"🔧 Refreshing dataset with delimiter='{global_params['delimiter']}'")
+
+                dataset_config_dict = {
+                    'global_params': global_params,
+                }
+
+                if cfg.get('x_source_mode'):
+                    dataset_config_dict['x_source_mode'] = cfg['x_source_mode']
+
+                # Add file paths from saved files
+                for file_entry in dataset_info["files"]:
+                    file_path = file_entry['path']
+                    file_type = file_entry['type']
+                    partition = file_entry['partition']
+                    config_key = f"{partition}_{file_type}"
+
+                    if config_key in dataset_config_dict:
+                        existing = dataset_config_dict[config_key]
+                        if isinstance(existing, list):
+                            existing.append(file_path)
+                        else:
+                            dataset_config_dict[config_key] = [existing, file_path]
+                    else:
+                        dataset_config_dict[config_key] = file_path
+
+                print(f"📋 Config keys: {list(dataset_config_dict.keys())}")
+                print(f"📁 Files: train_x={dataset_config_dict.get('train_x')}, test_x={dataset_config_dict.get('test_x')}")
+
+                # Pass the config dict (not just the path)
+                dataset_configs = DatasetConfigs(dataset_config_dict)
+            else:
+                # Fallback: use folder path (will use default CSV parsing)
+                print(f"⚠️ No saved config/files, using folder path with default settings")
+                dataset_configs = DatasetConfigs(dataset_info["path"])
+
             datasets = dataset_configs.get_datasets()
 
             if datasets:
                 dataset = datasets[0]
 
-                # Prepare num_features_per_source when dataset.num_features is a sequence
-                nf = getattr(dataset, 'num_features', 0)
-                nf_per_source = None
-                try:
-                    if isinstance(nf, (list, tuple)):
-                        nf_per_source = list(nf)
-                    elif hasattr(nf, 'tolist'):
-                        nf_converted = nf.tolist()
-                        if isinstance(nf_converted, (list, tuple)):
-                            nf_per_source = list(nf_converted)
-                except Exception:
-                    nf_per_source = None
+                print(f"✅ Dataset loaded: num_features={dataset.num_features}, num_samples={dataset.num_samples}, sources={dataset.features_sources()}")
 
+                # Get num_features directly from dataset - it's already int or list
                 update_payload = {
-                    "num_samples": getattr(dataset, 'num_samples', 0),
-                    "num_features": getattr(dataset, 'num_features', 0),
-                    "task_type": getattr(dataset, 'task_type', 'unknown'),
-                    "sources": getattr(dataset, 'features_sources', lambda: 1)() if hasattr(dataset, 'features_sources') else 1,
+                    "num_samples": dataset.num_samples,
+                    "num_features": dataset.num_features,
+                    "task_type": dataset.task_type,
+                    "sources": dataset.features_sources(),
                     "last_refreshed": datetime.now().isoformat()
                 }
-                if nf_per_source is not None:
-                    update_payload['num_features_per_source'] = nf_per_source
 
                 dataset_info.update(update_payload)
                 self._save_workspace_config()
@@ -475,22 +502,17 @@ class WorkspaceManager:
 
         dataset_path = dataset_info["path"]
 
+        # Check if parse_config is available
+        if parse_config is None:
+            raise ValueError("nirs4all library not available: cannot parse dataset configuration")
+
         try:
-            # Use local parser module
-            parser_path = Path(__file__).parents[2] / 'nirs4all' / 'nirs4all' / 'dataset' / 'dataset_config_parser.py'
-            if not parser_path.exists():
-                raise ValueError("dataset_config_parser module not found")
-
-            spec = importlib.util.spec_from_file_location('dataset_config_parser_local', str(parser_path))
-            if spec is None or spec.loader is None:
-                raise RuntimeError("Failed to prepare dataset_config_parser module")
-            parser_mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(parser_mod)
-
             # Parse config to detect files
-            parsed_config, _ = parser_mod.parse_config(dataset_path)
+            parsed_config, _ = parse_config(dataset_path)
             if parsed_config is None:
                 return []
+
+            print(f"🔍 Auto-detected config: {parsed_config.keys()}")
 
             # Convert parsed config to DatasetFile format
             files = []
@@ -508,16 +530,33 @@ class WorkspaceManager:
             for config_key, file_type, partition in file_mappings:
                 value = parsed_config.get(config_key)
                 if value:
+                    print(f"  {config_key}: {value} (type: {type(value).__name__})")
                     if isinstance(value, list):
-                        # Multiple files - assign source_ids for X files
-                        for idx, file_path in enumerate(value):
-                            source_id = idx if file_type == 'x' and len(value) > 1 else None
+                        # Multiple files detected - filter out backups/duplicates
+                        # Remove files with parentheses (e.g., "file (1).csv") or "copy" in name
+                        filtered_value = [f for f in value if '(' not in str(f) and 'copy' not in str(f).lower()]
+
+                        if len(filtered_value) == 1:
+                            # After filtering, only one file remains - treat as single source
+                            print(f"    → Filtered to single file: {filtered_value[0]}")
                             files.append({
-                                'path': file_path,
+                                'path': filtered_value[0],
                                 'type': file_type,
                                 'partition': partition,
-                                'source_id': source_id
+                                'source_id': None
                             })
+                        elif len(filtered_value) > 1:
+                            # Multiple legitimate files - treat as multi-source
+                            print(f"    → Multiple sources detected: {len(filtered_value)} files")
+                            for idx, file_path in enumerate(filtered_value):
+                                source_id = idx if file_type == 'x' else None
+                                files.append({
+                                    'path': file_path,
+                                    'type': file_type,
+                                    'partition': partition,
+                                    'source_id': source_id
+                                })
+                        # If all were filtered out, skip this entry
                     elif isinstance(value, str):
                         files.append({
                             'path': value,
@@ -525,6 +564,17 @@ class WorkspaceManager:
                             'partition': partition,
                             'source_id': None
                         })
+                    elif isinstance(value, str):
+                        files.append({
+                            'path': value,
+                            'type': file_type,
+                            'partition': partition,
+                            'source_id': None
+                        })
+
+            print(f"✅ Detected {len(files)} files total")
+            for f in files:
+                print(f"   - {f['partition']}_{f['type']}: {f['path']} (source_id={f.get('source_id')})")
 
             return files
 
@@ -554,10 +604,15 @@ class WorkspaceManager:
 
         try:
             # Build full config dict from files array
-            full_config = {
+            # CSV parsing parameters must be in 'global_params' to be used by load_csv
+            global_params = {
                 'delimiter': config.get('delimiter', ';'),
                 'decimal_separator': config.get('decimal_separator', '.'),
                 'has_header': config.get('has_header', True),
+            }
+
+            full_config = {
+                'global_params': global_params,
                 'x_source_mode': config.get('x_source_mode', 'stack'),
             }
 
@@ -586,46 +641,29 @@ class WorkspaceManager:
                 else:
                     full_config[config_key] = file_path
 
-            # Now try to load the dataset to get dimensions
-            # Use the loader module locally
-            loader_path = Path(__file__).parents[2] / 'nirs4all' / 'nirs4all' / 'dataset' / 'loader.py'
-            if not loader_path.exists():
-                raise ValueError("loader module not found")
+            # Check if handle_data is available
+            if handle_data is None:
+                raise ValueError("nirs4all library not available: cannot load dataset")
 
-            spec = importlib.util.spec_from_file_location('loader_local', str(loader_path))
-            if spec is None or spec.loader is None:
-                raise RuntimeError("Failed to prepare loader module")
-            loader_mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(loader_mod)
-
-            # Load train data to get dimensions
+            # Load the dataset to get dimensions
             num_samples = 0
             num_features = 0
             num_targets = 0
             num_sources = 1
 
+            # Load train data
             if full_config.get('train_x'):
                 try:
-                    x_train, y_train, headers = loader_mod.handle_data(full_config, 'train')
+                    x_train, y_train, _ = handle_data(full_config, 'train')
 
-                    # Calculate dimensions
-                    features_per_source = None
+                    # Calculate dimensions - store num_features as int or list like nirs4all
                     if isinstance(x_train, list):
                         # Multiple sources
                         num_sources = len(x_train)
                         if len(x_train) > 0:
                             num_samples = x_train[0].shape[0] if len(x_train[0].shape) > 0 else 0
-                            # Compute per-source feature counts
-                            try:
-                                features_per_source = [x.shape[1] if len(x.shape) > 1 else 0 for x in x_train]
-                            except Exception:
-                                features_per_source = None
-                            if full_config.get('x_source_mode') == 'concat':
-                                # Concatenated: sum features across sources
-                                num_features = sum((f or 0) for f in (features_per_source or []))
-                            else:
-                                # Stacked: features from first source
-                                num_features = x_train[0].shape[1] if len(x_train[0].shape) > 1 else 0
+                            # Store as list for multi-source
+                            num_features = [x.shape[1] if len(x.shape) > 1 else 0 for x in x_train]
                     else:
                         # Single source
                         if len(x_train.shape) >= 2:
@@ -638,23 +676,39 @@ class WorkspaceManager:
                         num_targets = y_train.shape[1] if len(y_train.shape) > 1 else 1
 
                 except Exception as e:
-                    print(f"Warning: Failed to load dataset for dimension extraction: {e}")
-                    # Continue with zeros
+                    print(f"Warning: Failed to load train data for dimension extraction: {e}")
 
-                    # Update dataset info (include per-source counts when available)
-                    update_payload = {
-                        'config': config,
-                        'files': files,
-                        'num_samples': num_samples,
-                        'num_features': num_features,
-                        'num_targets': num_targets,
-                        'num_sources': num_sources,
-                        'last_loaded': datetime.now().isoformat()
-                    }
-                    if features_per_source is not None:
-                        update_payload['num_features_per_source'] = features_per_source
+            # Also load test data to add to sample count
+            if full_config.get('test_x'):
+                try:
+                    x_test, y_test, _ = handle_data(full_config, 'test')
 
-                    dataset_info.update(update_payload)
+                    # Add test samples to total count
+                    if isinstance(x_test, list):
+                        if len(x_test) > 0:
+                            num_samples += x_test[0].shape[0] if len(x_test[0].shape) > 0 else 0
+                    else:
+                        if len(x_test.shape) >= 1:
+                            num_samples += x_test.shape[0]
+
+                    # Update num_targets if we didn't have it from train
+                    if num_targets == 0 and y_test is not None and len(y_test.shape) > 0:
+                        num_targets = y_test.shape[1] if len(y_test.shape) > 1 else 1
+
+                except Exception as e:
+                    print(f"Warning: Failed to load test data for dimension extraction: {e}")
+
+            # Update dataset info
+            update_payload = {
+                'config': config,
+                'files': files,
+                'num_samples': num_samples,
+                'num_features': num_features,
+                'num_targets': num_targets,
+                'num_sources': num_sources,
+                'last_loaded': datetime.now().isoformat()
+            }
+            dataset_info.update(update_payload)
 
             self._workspace_config.datasets[dataset_index] = dataset_info
             self._save_workspace_config()

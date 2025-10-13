@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'feather-icons-react';
-import type { Dataset } from '../types';
+import type { Dataset, DatasetFile } from '../types';
+import { apiClient } from '../api/client';
 
 interface DatasetEditConfig {
   path: string;
@@ -18,7 +19,7 @@ interface DatasetEditConfig {
 interface EditDatasetModalProps {
   dataset: Dataset;
   onClose: () => void;
-  onSave: (datasetId: string, config: any) => Promise<void>;
+  onSave: (datasetId: string, config: any, files: DatasetFile[]) => Promise<void>;
 }
 
 const EditDatasetModal = ({ dataset, onClose, onSave }: EditDatasetModalProps) => {
@@ -77,7 +78,12 @@ const EditDatasetModal = ({ dataset, onClose, onSave }: EditDatasetModalProps) =
       if (config.trainGroupPath) configToSave.train_group = config.trainGroupPath;
       if (config.testGroupPath) configToSave.test_group = config.testGroupPath;
 
-      await onSave(dataset.id, configToSave);
+      // Detect files from the dataset using the backend
+      const detectedFilesResponse = await apiClient.detectDatasetFiles(dataset.id);
+      const detectedFiles: DatasetFile[] = detectedFilesResponse.files || [];
+
+      // Call save with config and detected files
+      await onSave(dataset.id, configToSave, detectedFiles);
       onClose();
     } catch (error) {
       console.error('Failed to save dataset config:', error);

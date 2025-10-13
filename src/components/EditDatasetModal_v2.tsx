@@ -9,22 +9,34 @@ interface EditDatasetModalProps {
 }
 
 const EditDatasetModal = ({ dataset, onClose, onSave }: EditDatasetModalProps) => {
-  const [files, setFiles] = useState<DatasetFile[]>(dataset.files || []);
+  const [files, setFiles] = useState<DatasetFile[]>([]);
   const [config, setConfig] = useState({
-    delimiter: dataset.config?.delimiter || ';',
-    decimalSeparator: dataset.config?.decimal_separator || '.',
-    header: dataset.config?.has_header === false ? 'none' : (dataset.config?.header_type || 'text'),
-    xSourceMode: dataset.config?.x_source_mode || 'stack',
+    delimiter: ';',
+    decimalSeparator: '.',
+    header: 'text',
+    xSourceMode: 'stack' as 'stack' | 'concat',
   });
   const [loading, setLoading] = useState(false);
   const [autoDetecting, setAutoDetecting] = useState(false);
 
+  // Load config from dataset whenever dataset changes
+  useEffect(() => {
+    setFiles(dataset.files || []);
+    setConfig({
+      delimiter: dataset.config?.delimiter || ';',
+      decimalSeparator: dataset.config?.decimal_separator || '.',
+      header: dataset.config?.has_header === false ? 'none' : (dataset.config?.header_type || 'text'),
+      xSourceMode: dataset.config?.x_source_mode || 'stack',
+    });
+  }, [dataset]);
+
   // Auto-detect files when component mounts if no files configured
   useEffect(() => {
-    if (files.length === 0) {
+    // Only auto-detect if dataset has no files configured
+    if (!dataset.files || dataset.files.length === 0) {
       handleAutoDetect();
     }
-  }, []);
+  }, []); // Empty deps - only run once on mount
 
   const handleAutoDetect = async () => {
     setAutoDetecting(true);

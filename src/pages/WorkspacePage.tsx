@@ -479,7 +479,7 @@ const WorkspacePage = () => {
 
         {showEditDatasetModal && editingDataset && (
           <EditDatasetModal
-            dataset={editingDataset}
+            dataset={datasets.find(d => d.id === editingDataset.id) || editingDataset}
             onClose={() => {
               setShowEditDatasetModal(false);
               setEditingDataset(null);

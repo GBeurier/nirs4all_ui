@@ -72,13 +72,27 @@ if public_path.exists():
             return FileResponse(str(lib_file))
         raise HTTPException(status_code=404, detail="Component library not found")
 
+    @app.get("/nirs4all_icon.svg")
+    async def serve_app_icon_svg():
+        """Serve the primary app icon (SVG) from the public folder"""
+        icon_file = public_path / "nirs4all_icon.svg"
+        if icon_file.exists():
+            return FileResponse(str(icon_file))
+        legacy_svg = public_path / "nirs4all.svg"
+        if legacy_svg.exists():
+            return FileResponse(str(legacy_svg))
+        raise HTTPException(status_code=404, detail="App icon SVG not found")
+
     @app.get("/nirs4all.svg")
-    async def serve_vite_svg():
-        """Serve vite svg from public folder"""
+    async def serve_legacy_svg():
+        """Serve legacy SVG icon path for compatibility"""
         svg_file = public_path / "nirs4all.svg"
         if svg_file.exists():
             return FileResponse(str(svg_file))
-        raise HTTPException(status_code=404, detail="Vite SVG not found")
+        icon_file = public_path / "nirs4all_icon.svg"
+        if icon_file.exists():
+            return FileResponse(str(icon_file))
+        raise HTTPException(status_code=404, detail="Legacy SVG not found")
 
     @app.get("/nirs4all.ico")
     async def serve_favicon_ico():

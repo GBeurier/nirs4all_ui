@@ -2,6 +2,7 @@
 REM nirs4all.bat - Centralized launcher for all app modes
 REM Usage:
 REM   nirs4all.bat dev        - Development mode (Vite dev server in browser)
+REM   nirs4all.bat dev_app    - Development mode (Vite dev server + pywebview shell)
 REM   nirs4all.bat prod_dbg   - Production debug (Desktop app + backend console with logs)
 REM   nirs4all.bat prod       - Production mode (Packaged executable)
 REM   nirs4all.bat clean      - Kill all running servers and app instances
@@ -20,6 +21,7 @@ if "%MODE%"=="" (
   echo.
   echo Usage:
   echo   nirs4all.bat dev        Development mode ^(browser + hot reload^)
+  echo   nirs4all.bat dev_app    Development mode ^(pywebview + Vite hot reload^)
   echo   nirs4all.bat prod_dbg   Production debug ^(desktop app + logs^)
   echo   nirs4all.bat prod       Production mode ^(standalone app^)
   echo   nirs4all.bat build      Build frontend only
@@ -197,6 +199,76 @@ if "%MODE%"=="dev" (
 )
 
 REM ============================================
+REM DEV_APP MODE: Dev mode with desktop shell
+REM ============================================
+if "%MODE%"=="dev_app" (
+  echo.
+  echo ========================================
+  echo nirs4all - Dev Desktop Mode
+  echo ========================================
+  echo.
+
+  echo [1/3] Starting backend server...
+  if exist .venv\Scripts\python.exe (
+    start "nirs4all Backend [DEV]" cmd /k "cls && set TF_CPP_MIN_LOG_LEVEL=2 && set TF_ENABLE_ONEDNN_OPTS=0 && echo ======================================== && echo. && echo   nirs4all Backend Server ^(DEV^) && echo. && echo ======================================== && echo. && echo Server: http://127.0.0.1:8000 && echo API Docs: http://127.0.0.1:8000/docs && echo. && echo Press Ctrl+C to stop && echo. && .venv\Scripts\python.exe main.py"
+  ) else (
+    start "nirs4all Backend [DEV]" cmd /k "cls && set TF_CPP_MIN_LOG_LEVEL=2 && set TF_ENABLE_ONEDNN_OPTS=0 && echo ======================================== && echo. && echo   nirs4all Backend Server ^(DEV^) && echo. && echo ======================================== && echo. && echo Server: http://127.0.0.1:8000 && echo API Docs: http://127.0.0.1:8000/docs && echo. && echo Press Ctrl+C to stop && echo. && python main.py"
+  )
+  echo       Waiting for backend to initialize...
+  timeout /t 3 /nobreak >nul
+
+  echo [2/3] Starting Vite dev server...
+  start "nirs4all Vite [DEV]" cmd /k "cls && echo ======================================== && echo. && echo   nirs4all Vite Dev Server && echo. && echo ======================================== && echo. && echo Server: http://localhost:5173 && echo Hot reload enabled - edit files to see changes! && echo. && echo Press Ctrl+C to stop && echo. && npm run dev"
+  
+  echo       Waiting for Vite to initialize...
+  timeout /t 5 /nobreak >nul
+
+  echo [3/3] Launching pywebview desktop shell...
+  echo.
+  echo ========================================
+  echo Dev desktop environment ready!
+  echo ========================================
+  echo   Windows launched:
+  echo     1. Backend Server  - http://127.0.0.1:8000
+  echo     2. Vite Dev Server - http://localhost:5173 ^(HOT RELOAD^)
+  echo     3. Desktop Shell   - pywebview window ^(opening now...^)
+  echo.
+  echo   To see changes:
+  echo     - Edit React/TypeScript files
+  echo     - Changes appear automatically in pywebview
+  echo     - No rebuild needed!
+  echo.
+  echo   To stop:
+  echo     - Close the pywebview window
+  echo     - Press Ctrl+C in Vite and Backend consoles
+  echo     - Or run: nirs4all.bat clean
+  echo ========================================
+  echo.
+
+  REM Launch pywebview in foreground (blocking) with VITE_DEV=true
+  if exist .venv\Scripts\python.exe (
+    set VITE_DEV=true
+    set NIRS4ALL_DEBUG=true
+    .venv\Scripts\python.exe launcher.py
+  ) else (
+    set VITE_DEV=true
+    set NIRS4ALL_DEBUG=true
+    python launcher.py
+  )
+
+  echo.
+  echo ========================================
+  echo Desktop shell closed.
+  echo ========================================
+  echo Backend and Vite servers are still running.
+  echo To stop them, run: nirs4all.bat clean
+  echo ========================================
+  echo.
+
+  exit /b 0
+)
+
+REM ============================================
 REM PROD_DBG MODE: Production with debug console
 REM ============================================
 if "%MODE%"=="prod_dbg" (
@@ -297,6 +369,7 @@ echo ERROR: Unknown mode "%MODE%"
 echo.
 echo Valid modes:
 echo   dev        - Development mode ^(browser + hot reload^)
+echo   dev_app    - Development mode ^(desktop shell + hot reload^)
 echo   prod_dbg   - Production debug ^(desktop app + logs^)
 echo   prod       - Production mode ^(standalone app^)
 echo   build      - Build frontend only

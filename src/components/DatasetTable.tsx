@@ -23,15 +23,18 @@ const DatasetTable = ({
   const navigate = useNavigate();
 
   const formatNumFeatures = (d: Dataset): string => {
-    const nfAny: any = (d as any).num_features_per_source ?? (d as any).num_features;
-    if (Array.isArray(nfAny)) return nfAny.join(' | ');
-    if (typeof nfAny === 'number') return String(nfAny);
-    if (typeof nfAny === 'string') {
-      if ((nfAny as string).includes(',')) return (nfAny as string).split(',').map((s) => s.trim()).join(' | ');
-      if ((nfAny as string).includes(';')) return (nfAny as string).split(';').map((s) => s.trim()).join(' | ');
-      if (d.num_sources && d.num_sources > 1 && /\d+\s+\d+/.test(nfAny)) return (nfAny as string).split(/\s+/).join(' | ');
-      return nfAny as string;
+    const nf = d.num_features;
+
+    // Handle array (multi-source)
+    if (Array.isArray(nf)) {
+      return nf.map(f => String(f)).join(' | ');
     }
+
+    // Handle number (single source)
+    if (typeof nf === 'number') {
+      return String(nf);
+    }
+
     return 'N/A';
   };
 
@@ -116,7 +119,7 @@ const DatasetTable = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {dataset.num_samples && (dataset.num_features || (dataset as any).num_features_per_source) ? (
+                    {dataset.num_samples && dataset.num_features ? (
                       <span className="font-mono">
                         {dataset.num_samples} / {formatNumFeatures(dataset)}{dataset.num_targets !== undefined && dataset.num_targets !== null ? ` / ${dataset.num_targets}` : ''}
                       </span>

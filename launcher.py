@@ -198,18 +198,21 @@ def main():
     else:
         base_path = Path(__file__).parent
 
-    # Prefer an ICO file for Windows application icon. Fall back to PNG or SVG if ICO missing.
+    # Prefer dedicated nirs4all icon assets (.ico > .png > .svg) before falling back to legacy files.
     icon_path = None
-    ico_candidate = base_path / 'public' / 'nirs4all.ico'
-    png_candidate = base_path / 'public' / 'nirs4all_logo.png'
-    svg_candidate = base_path / 'public' / 'nirs4all_icon.svg'
+    icon_candidates = [
+        base_path / 'public' / 'nirs4all_icon.ico',
+        base_path / 'public' / 'nirs4all.ico',
+        base_path / 'public' / 'nirs4all_icon.png',
+        base_path / 'public' / 'nirs4all_logo.png',
+        base_path / 'public' / 'nirs4all_icon.svg',
+        base_path / 'public' / 'nirs4all.svg',
+    ]
 
-    if ico_candidate.exists():
-        icon_path = str(ico_candidate)
-    elif png_candidate.exists():
-        icon_path = str(png_candidate)
-    elif svg_candidate.exists():
-        icon_path = str(svg_candidate)
+    for candidate in icon_candidates:
+        if candidate.exists():
+            icon_path = str(candidate)
+            break
 
     if icon_path:
         print(f"Using application icon: {icon_path}")

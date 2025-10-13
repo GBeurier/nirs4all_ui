@@ -50,12 +50,32 @@ main_py = curr_dir / 'main.py'
 if main_py.exists():
     all_datas.append((str(main_py), '.'))
 
-# If the project provides a Windows ICO icon in the public folder, use it
-icon_file = curr_dir / 'public' / 'nirs4all.ico'
-if icon_file.exists():
-    exe_icon = str(icon_file)
-else:
-    exe_icon = None
+# Check if nirs4all library exists in parent directory (development mode)
+nirs4all_lib_dir = curr_dir.parent / 'nirs4all' / 'nirs4all'
+if nirs4all_lib_dir.exists():
+    print(f"Including nirs4all library from: {nirs4all_lib_dir}")
+    # Add the nirs4all package to be bundled
+    for root, dirs, files in os.walk(nirs4all_lib_dir):
+        # Skip __pycache__, .git, tests, etc.
+        dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'tests', '.pytest_cache', '__init__.pyc']]
+        for file in files:
+            if file.endswith('.py'):
+                file_path = Path(root) / file
+                # Calculate the relative path for the destination
+                # We want to preserve the 'nirs4all' package structure
+                rel_to_parent = file_path.relative_to(curr_dir.parent)
+                all_datas.append((str(file_path), str(rel_to_parent.parent)))
+
+# Prefer the dedicated nirs4all icon if available, otherwise fall back to legacy naming
+icon_candidates = [
+    curr_dir / 'public' / 'nirs4all_icon.ico',
+    curr_dir / 'public' / 'nirs4all.ico',
+]
+exe_icon = None
+for icon_path in icon_candidates:
+    if icon_path.exists():
+        exe_icon = str(icon_path)
+        break
 
 a = Analysis(
     ['launcher.py'],
@@ -85,6 +105,12 @@ a = Analysis(
         'api.pipelines',
         'api.predictions',
         'api.workspace_manager',
+        # nirs4all library modules
+        'nirs4all',
+        'nirs4all.dataset',
+        'nirs4all.dataset.dataset_config',
+        'nirs4all.dataset.dataset_config_parser',
+        'nirs4all.dataset.loader',
     ],
     hookspath=[],
     hooksconfig={},

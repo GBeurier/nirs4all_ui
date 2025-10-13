@@ -1,5 +1,9 @@
 # TODO
 
+[Layout]
+- Run id history
+
+
 [Workspace]
 - source combobox in dataset edit is useless
 - refresh button per dataset
@@ -7,7 +11,8 @@
 - Verify add datasets with files (backend side maybe)
 
 [Pipeline]
-- Order menus better and set a category for experimental, and rare operators
+
+- Order menus better and set a category for experimental, and rare operators. Hide advanced button
 - add a Chart category and an Analysis category
 - move nirs4all models and standard models in a dedicated category
 - Manage generation operators.
@@ -16,6 +21,8 @@
 - Add info on classifier or regressor
 - verify box size or trim long text
 - DO NOT SAVE DEFAULT PARAMS
+- Activate / Deactivate nodes
+
 
 
 [Predictions]
@@ -23,6 +30,9 @@
 - reduce filters size combo and button and dates
 - add many other filters and sorts
 - led to signal pipeline saved or not
+
+[Predictions_run]
+- same as db but for last run
 
 
 [Distribution]
