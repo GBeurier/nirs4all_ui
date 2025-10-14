@@ -27,6 +27,9 @@
 - important params directly in the node div
 - generator nodes with actions directly in pipeline editor
 
+[Pipeline operators]
+- add iterstrat splitters: MultilabelStratifiedKFold, MultilabelStratifiedShuffleSplit and sklearn StratifiedGroupKFold, etc.
+
 [Predictions]
 - Create views (either different prediction sources, or filters); allows to link a pipeline to its own predictions only
 - View accessibles in a menu.
