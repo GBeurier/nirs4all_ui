@@ -22,10 +22,14 @@
 - verify box size or trim long text
 - DO NOT SAVE DEFAULT PARAMS
 - Activate / Deactivate nodes
-
-
+- new menu with opened pipelines
+- pipeline name
+- important params directly in the node div
+- generator nodes with actions directly in pipeline editor
 
 [Predictions]
+- Create views (either different prediction sources, or filters); allows to link a pipeline to its own predictions only
+- View accessibles in a menu.
 - Find a way to handle multiples predictions (either multi windows, temp groups, I don't fucking now how)
 - reduce filters size combo and button and dates
 - add many other filters and sorts
