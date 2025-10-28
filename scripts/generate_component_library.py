@@ -153,23 +153,23 @@ CLASS_PATHS: dict[str, str] = {
     "identity_augmenter": "nirs4all.operators.augmentation.abc_augmenter.IdentityAugmenter",
 
     # Baseline / preprocessing
-    "baseline": "nirs4all.operators.transformations.signal.Baseline",
-    "detrend": "nirs4all.operators.transformations.signal.Detrend",
-    "multiplicative_scatter_correction": "nirs4all.operators.transformations.nirs.MultiplicativeScatterCorrection",
-    "standard_normal_variate": "nirs4all.operators.transformations.scalers.StandardNormalVariate",
-    "robust_normal_variate": "nirs4all.operators.transformations.scalers.RobustNormalVariate",
-    "savitzky_golay": "nirs4all.operators.transformations.nirs.SavitzkyGolay",
-    "gaussian_smoothing": "nirs4all.operators.transformations.signal.Gaussian",
-    "first_derivative": "nirs4all.operators.transformations.nirs.FirstDerivative",
-    "second_derivative": "nirs4all.operators.transformations.nirs.SecondDerivative",
-    "derivate_samples": "nirs4all.operators.transformations.scalers.Derivate",
-    "haar_wavelet": "nirs4all.operators.transformations.nirs.Haar",
-    "log_transform": "nirs4all.operators.transformations.nirs.LogTransform",
-    "normalize_rows": "nirs4all.operators.transformations.scalers.Normalize",
-    "simple_scale": "nirs4all.operators.transformations.scalers.SimpleScale",
-    "crop_transformer": "nirs4all.operators.transformations.features.CropTransformer",
-    "resample_transformer": "nirs4all.operators.transformations.features.ResampleTransformer",
-    "resampler": "nirs4all.operators.transformations.resampler.Resampler",
+    "baseline": "nirs4all.operators.transforms.signal.Baseline",
+    "detrend": "nirs4all.operators.transforms.signal.Detrend",
+    "multiplicative_scatter_correction": "nirs4all.operators.transforms.nirs.MultiplicativeScatterCorrection",
+    "standard_normal_variate": "nirs4all.operators.transforms.scalers.StandardNormalVariate",
+    "robust_normal_variate": "nirs4all.operators.transforms.scalers.RobustNormalVariate",
+    "savitzky_golay": "nirs4all.operators.transforms.nirs.SavitzkyGolay",
+    "gaussian_smoothing": "nirs4all.operators.transforms.signal.Gaussian",
+    "first_derivative": "nirs4all.operators.transforms.nirs.FirstDerivative",
+    "second_derivative": "nirs4all.operators.transforms.nirs.SecondDerivative",
+    "derivate_samples": "nirs4all.operators.transforms.scalers.Derivate",
+    "haar_wavelet": "nirs4all.operators.transforms.nirs.Haar",
+    "log_transform": "nirs4all.operators.transforms.nirs.LogTransform",
+    "normalize_rows": "nirs4all.operators.transforms.scalers.Normalize",
+    "simple_scale": "nirs4all.operators.transforms.scalers.SimpleScale",
+    "crop_transformer": "nirs4all.operators.transforms.features.CropTransformer",
+    "resample_transformer": "nirs4all.operators.transforms.features.ResampleTransformer",
+    "resampler": "nirs4all.operators.transforms.resampler.Resampler",
 
     # Splitters
     "shuffle_split": "sklearn.model_selection._split.ShuffleSplit",
@@ -191,12 +191,12 @@ CLASS_PATHS: dict[str, str] = {
     "kbins_stratified": "nirs4all.operators.splitters.splitters.KBinsStratifiedSplitter",
 
     # Target transforms
-    "integer_kbins_discretizer": "nirs4all.operators.transformations.targets.IntegerKBinsDiscretizer",
-    "range_discretizer": "nirs4all.operators.transformations.targets.RangeDiscretizer",
+    "integer_kbins_discretizer": "nirs4all.operators.transforms.targets.IntegerKBinsDiscretizer",
+    "range_discretizer": "nirs4all.operators.transforms.targets.RangeDiscretizer",
 }
 
 FUNCTION_PATHS: dict[str, str] = {
-    "wavelet_transform": "nirs4all.operators.transformations.nirs.wavelet_transform",
+    "wavelet_transform": "nirs4all.operators.transforms.nirs.wavelet_transform",
 }
 
 

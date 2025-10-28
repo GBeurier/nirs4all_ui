@@ -15,8 +15,8 @@ const examplePipeline = [
   },
   {
     "feature_augmentation": [
-      "nirs4all.operators.transformations.signal.Detrend",
-      "nirs4all.operators.transformations.nirs.FirstDerivative"
+      "nirs4all.operators.transforms.signal.Detrend",
+      "nirs4all.operators.transforms.nirs.FirstDerivative"
     ]
   },
   "chart_2d",

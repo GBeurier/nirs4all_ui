@@ -68,8 +68,8 @@ Generate additional features (expands feature space):
 ```json
 {
   "feature_augmentation": [
-    "nirs4all.operators.transformations.signal.Detrend",
-    "nirs4all.operators.transformations.nirs.FirstDerivative"
+    "nirs4all.operators.transforms.signal.Detrend",
+    "nirs4all.operators.transforms.nirs.FirstDerivative"
   ]
 }
 ```
@@ -105,9 +105,9 @@ Generates combinations of choices:
 ```json
 {
   "_or_": [
-    "nirs4all.operators.transformations.signal.Detrend",
-    "nirs4all.operators.transformations.nirs.FirstDerivative",
-    "nirs4all.operators.transformations.nirs.Gaussian"
+    "nirs4all.operators.transforms.signal.Detrend",
+    "nirs4all.operators.transforms.nirs.FirstDerivative",
+    "nirs4all.operators.transforms.nirs.Gaussian"
   ]
 }
 ```
@@ -212,11 +212,11 @@ Here's a complete pipeline from the Q1 regression example:
   {
     "feature_augmentation": {
       "_or_": [
-        "nirs4all.operators.transformations.signal.Detrend",
-        "nirs4all.operators.transformations.nirs.FirstDerivative",
-        "nirs4all.operators.transformations.nirs.Gaussian",
-        "nirs4all.operators.transformations.nirs.SavitzkyGolay",
-        "nirs4all.operators.transformations.nirs.Haar"
+        "nirs4all.operators.transforms.signal.Detrend",
+        "nirs4all.operators.transforms.nirs.FirstDerivative",
+        "nirs4all.operators.transforms.nirs.Gaussian",
+        "nirs4all.operators.transforms.nirs.SavitzkyGolay",
+        "nirs4all.operators.transforms.nirs.Haar"
       ],
       "size": 2
     }

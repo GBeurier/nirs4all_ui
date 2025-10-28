@@ -360,7 +360,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.signal.Baseline"
+      "classPath": "nirs4all.operators.transforms.signal.Baseline"
     },
     {
       "id": "detrend",
@@ -389,7 +389,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.signal.Detrend"
+      "classPath": "nirs4all.operators.transforms.signal.Detrend"
     },
     {
       "id": "feature_augmentation",
@@ -501,7 +501,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.nirs.FirstDerivative"
+      "classPath": "nirs4all.operators.transforms.nirs.FirstDerivative"
     },
     {
       "id": "derivate_samples",
@@ -537,7 +537,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.scalers.Derivate"
+      "classPath": "nirs4all.operators.transforms.scalers.Derivate"
     },
     {
       "id": "second_derivative",
@@ -573,7 +573,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.nirs.SecondDerivative"
+      "classPath": "nirs4all.operators.transforms.nirs.SecondDerivative"
     },
     {
       "id": "_or_",
@@ -636,7 +636,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.scalers.Normalize"
+      "classPath": "nirs4all.operators.transforms.scalers.Normalize"
     },
     {
       "id": "simple_scale",
@@ -658,7 +658,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.scalers.SimpleScale"
+      "classPath": "nirs4all.operators.transforms.scalers.SimpleScale"
     },
     {
       "id": "batch_prediction",
@@ -751,7 +751,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.resampler.Resampler"
+      "classPath": "nirs4all.operators.transforms.resampler.Resampler"
     },
     {
       "id": "crop_transformer",
@@ -780,7 +780,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.features.CropTransformer"
+      "classPath": "nirs4all.operators.transforms.features.CropTransformer"
     },
     {
       "id": "resample_transformer",
@@ -802,7 +802,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.features.ResampleTransformer"
+      "classPath": "nirs4all.operators.transforms.features.ResampleTransformer"
     },
     {
       "id": "multiplicative_scatter_correction",
@@ -831,7 +831,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.nirs.MultiplicativeScatterCorrection"
+      "classPath": "nirs4all.operators.transforms.nirs.MultiplicativeScatterCorrection"
     },
     {
       "id": "robust_normal_variate",
@@ -887,7 +887,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.scalers.RobustNormalVariate"
+      "classPath": "nirs4all.operators.transforms.scalers.RobustNormalVariate"
     },
     {
       "id": "standard_normal_variate",
@@ -937,7 +937,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.scalers.StandardNormalVariate"
+      "classPath": "nirs4all.operators.transforms.scalers.StandardNormalVariate"
     },
     {
       "id": "birch",
@@ -14991,7 +14991,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.signal.Gaussian"
+      "classPath": "nirs4all.operators.transforms.signal.Gaussian"
     },
     {
       "id": "savitzky_golay",
@@ -15041,7 +15041,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.nirs.SavitzkyGolay"
+      "classPath": "nirs4all.operators.transforms.nirs.SavitzkyGolay"
     },
     {
       "id": "identity_augmenter",
@@ -15454,7 +15454,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.nirs.Haar"
+      "classPath": "nirs4all.operators.transforms.nirs.Haar"
     },
     {
       "id": "log_transform",
@@ -15504,7 +15504,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.nirs.LogTransform"
+      "classPath": "nirs4all.operators.transforms.nirs.LogTransform"
     },
     {
       "id": "wavelet_transform",
@@ -15540,7 +15540,7 @@
         }
       ],
       "generationMode": "in-place",
-      "functionPath": "nirs4all.operators.transformations.nirs.wavelet_transform"
+      "functionPath": "nirs4all.operators.transforms.nirs.wavelet_transform"
     },
     {
       "id": "group_kfold",
@@ -16164,7 +16164,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.targets.IntegerKBinsDiscretizer"
+      "classPath": "nirs4all.operators.transforms.targets.IntegerKBinsDiscretizer"
     },
     {
       "id": "range_discretizer",
@@ -16186,7 +16186,7 @@
         }
       ],
       "generationMode": "in-place",
-      "classPath": "nirs4all.operators.transformations.targets.RangeDiscretizer"
+      "classPath": "nirs4all.operators.transforms.targets.RangeDiscretizer"
     },
     {
       "id": "bard",

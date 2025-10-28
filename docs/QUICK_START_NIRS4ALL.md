@@ -41,7 +41,7 @@ const blob = new Blob([pipelineJson], { type: 'application/json' });
     "class": "sklearn.preprocessing._data.MinMaxScaler"
   },
   {
-    "class": "nirs4all.operators.transformations.signal.Detrend"
+    "class": "nirs4all.operators.transforms.signal.Detrend"
   }
 ]
 ```
@@ -55,8 +55,8 @@ const blob = new Blob([pipelineJson], { type: 'application/json' });
 ```json
 {
   "feature_augmentation": [
-    "nirs4all.operators.transformations.signal.Detrend",
-    "nirs4all.operators.transformations.nirs.FirstDerivative"
+    "nirs4all.operators.transforms.signal.Detrend",
+    "nirs4all.operators.transforms.nirs.FirstDerivative"
   ]
 }
 ```
@@ -103,9 +103,9 @@ const blob = new Blob([pipelineJson], { type: 'application/json' });
 ```json
 {
   "_or_": [
-    "nirs4all.operators.transformations.signal.Detrend",
-    "nirs4all.operators.transformations.nirs.FirstDerivative",
-    "nirs4all.operators.transformations.nirs.Gaussian"
+    "nirs4all.operators.transforms.signal.Detrend",
+    "nirs4all.operators.transforms.nirs.FirstDerivative",
+    "nirs4all.operators.transforms.nirs.Gaussian"
   ],
   "size": 2
 }
@@ -146,8 +146,8 @@ The converter automatically maps between Python classes and UI components:
 | Python Class | UI Component |
 |-------------|--------------|
 | `sklearn.preprocessing._data.MinMaxScaler` | `minmax_scaler` |
-| `nirs4all.operators.transformations.signal.Detrend` | `detrend` |
-| `nirs4all.operators.transformations.nirs.FirstDerivative` | `first_derivative` |
+| `nirs4all.operators.transforms.signal.Detrend` | `detrend` |
+| `nirs4all.operators.transforms.nirs.FirstDerivative` | `first_derivative` |
 | `sklearn.cross_decomposition._pls.PLSRegression` | `pls_regression` |
 | ... and more (see converter.ts) |
 
