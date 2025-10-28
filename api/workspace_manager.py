@@ -23,9 +23,9 @@ if str(nirs4all_path) not in sys.path:
 
 # Import only the specific modules we need
 try:
-    from nirs4all.dataset.dataset_config import DatasetConfigs
-    from nirs4all.dataset.dataset_config_parser import parse_config
-    from nirs4all.dataset.loader import handle_data
+    from nirs4all.data.dataset_config import DatasetConfigs
+    from nirs4all.data.dataset_config_parser import parse_config
+    from nirs4all.data.loader import handle_data
 except ImportError as e:
     print(f"Warning: Could not import nirs4all: {e}")
     DatasetConfigs = None

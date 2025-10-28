@@ -33,8 +33,8 @@ Replaced dynamic module loading with standard Python imports:
 
 ```python
 # NEW CODE (works in both dev and production)
-from nirs4all.dataset.dataset_config_parser import parse_config
-from nirs4all.dataset.loader import handle_data
+from nirs4all.data.dataset_config_parser import parse_config
+from nirs4all.data.loader import handle_data
 
 # Then use directly:
 parsed_config, dataset_name = parse_config(dataset_path)
@@ -43,8 +43,8 @@ x_train, y_train, headers = handle_data(full_config, 'train')
 
 **Changes made in `api/workspace_manager.py`:**
 - Line 28-29: Added imports:
-  - `from nirs4all.dataset.dataset_config_parser import parse_config`
-  - `from nirs4all.dataset.loader import handle_data`
+  - `from nirs4all.data.dataset_config_parser import parse_config`
+  - `from nirs4all.data.loader import handle_data`
 - Line 12: Removed unused `import importlib.util`
 - Line 205-207: Replaced 11 lines of dynamic loading with direct `parse_config()` call
 - Line 471-476: Replaced 11 lines of dynamic loading with direct `parse_config()` call
